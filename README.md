@@ -9,7 +9,7 @@ A blazing-fast, browser-based image processing engine built to demonstrate syste
 
 ## 🚀 Live Demo
 
-[Insert your Vercel/Netlify link here]
+[🟢 Live Demo: Wasm Image Engine](https://wasm-image-engine-de5m.vercel.app/)
 
 ## 🧠 Architectural Highlights
 
