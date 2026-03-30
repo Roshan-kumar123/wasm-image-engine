@@ -80,7 +80,7 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
   if (type !== "PROCESS_IMAGE") return;
 
   try {
-    const { imageData, filter } = payload;
+    const { imageData, filter, parameter } = payload;
 
     // ── THE FIX: Create a standard array view over the memory buffer ──────────
     // Rust expects a Uint8Array, but imageData.data is a Uint8ClampedArray.
@@ -93,16 +93,19 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
     // performance.now() is available natively in Worker scope (no import needed).
     const t0 = performance.now();
 
+    // Convert the 0-100 UI parameter to the appropriate Rust argument per filter.
+    const intensity = (parameter ?? 100) / 100.0;
+
     // Apply the selected filter directly on the memory view.
     switch (filter) {
       case "grayscale":
-        apply_grayscale(uint8View);
+        apply_grayscale(uint8View, intensity);
         break;
       case "invert":
-        apply_invert(uint8View);
+        apply_invert(uint8View, intensity);
         break;
       case "blur":
-        apply_blur(uint8View, imageData.width, imageData.height);
+        apply_blur(uint8View, imageData.width, imageData.height, parameter ?? 10);
         break;
       default: {
         // Exhaustiveness check — compile error if FilterType grows without updating this switch

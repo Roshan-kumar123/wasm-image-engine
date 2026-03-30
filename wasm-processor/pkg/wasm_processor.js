@@ -15,32 +15,37 @@
  * @param {Uint8Array} data
  * @param {number} width
  * @param {number} height
+ * @param {number} radius
  */
-export function apply_blur(data, width, height) {
+export function apply_blur(data, width, height, radius) {
     var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
-    wasm.apply_blur(ptr0, len0, data, width, height);
+    wasm.apply_blur(ptr0, len0, data, width, height, radius);
 }
 
 /**
- * Converts RGBA image data to grayscale in place.
+ * Converts RGBA image data to grayscale in place, blended by intensity.
  * Uses ITU-R BT.601 luminance coefficients for perceptually correct output.
+ * intensity 0.0 = original, 1.0 = full grayscale.
  * @param {Uint8Array} data
+ * @param {number} intensity
  */
-export function apply_grayscale(data) {
+export function apply_grayscale(data, intensity) {
     var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
-    wasm.apply_grayscale(ptr0, len0, data);
+    wasm.apply_grayscale(ptr0, len0, data, intensity);
 }
 
 /**
- * Inverts each RGB channel in place. Alpha channel is preserved.
+ * Inverts each RGB channel in place, blended by intensity.
+ * intensity 0.0 = original, 1.0 = full invert.
  * @param {Uint8Array} data
+ * @param {number} intensity
  */
-export function apply_invert(data) {
+export function apply_invert(data, intensity) {
     var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
-    wasm.apply_invert(ptr0, len0, data);
+    wasm.apply_invert(ptr0, len0, data, intensity);
 }
 
 function __wbg_get_imports() {

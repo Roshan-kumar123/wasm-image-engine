@@ -1,27 +1,32 @@
 use wasm_bindgen::prelude::*;
 
-/// Converts RGBA image data to grayscale in place.
+/// Converts RGBA image data to grayscale in place, blended by intensity.
 /// Uses ITU-R BT.601 luminance coefficients for perceptually correct output.
+/// intensity 0.0 = original, 1.0 = full grayscale.
 #[wasm_bindgen]
-pub fn apply_grayscale(data: &mut [u8]) {
+pub fn apply_grayscale(data: &mut [u8], intensity: f32) {
     for pixel in data.chunks_exact_mut(4) {
-        let gray = (0.299 * pixel[0] as f32
+        let gray = 0.299 * pixel[0] as f32
             + 0.587 * pixel[1] as f32
-            + 0.114 * pixel[2] as f32) as u8;
-        pixel[0] = gray;
-        pixel[1] = gray;
-        pixel[2] = gray;
+            + 0.114 * pixel[2] as f32;
+        pixel[0] = (pixel[0] as f32 + (gray - pixel[0] as f32) * intensity) as u8;
+        pixel[1] = (pixel[1] as f32 + (gray - pixel[1] as f32) * intensity) as u8;
+        pixel[2] = (pixel[2] as f32 + (gray - pixel[2] as f32) * intensity) as u8;
         // pixel[3] (alpha) is unchanged
     }
 }
 
-/// Inverts each RGB channel in place. Alpha channel is preserved.
+/// Inverts each RGB channel in place, blended by intensity.
+/// intensity 0.0 = original, 1.0 = full invert.
 #[wasm_bindgen]
-pub fn apply_invert(data: &mut [u8]) {
+pub fn apply_invert(data: &mut [u8], intensity: f32) {
     for pixel in data.chunks_exact_mut(4) {
-        pixel[0] = 255 - pixel[0];
-        pixel[1] = 255 - pixel[1];
-        pixel[2] = 255 - pixel[2];
+        let inv_r = 255.0 - pixel[0] as f32;
+        let inv_g = 255.0 - pixel[1] as f32;
+        let inv_b = 255.0 - pixel[2] as f32;
+        pixel[0] = (pixel[0] as f32 + (inv_r - pixel[0] as f32) * intensity) as u8;
+        pixel[1] = (pixel[1] as f32 + (inv_g - pixel[1] as f32) * intensity) as u8;
+        pixel[2] = (pixel[2] as f32 + (inv_b - pixel[2] as f32) * intensity) as u8;
         // alpha unchanged
     }
 }
@@ -38,10 +43,10 @@ pub fn apply_invert(data: &mut [u8]) {
 /// Two passes (H then V) approximate a 2-D box blur accurately because a box
 /// filter is separable: blur(H) ∘ blur(V) ≡ blur(2-D box).
 #[wasm_bindgen]
-pub fn apply_blur(data: &mut [u8], width: u32, height: u32) {
+pub fn apply_blur(data: &mut [u8], width: u32, height: u32, radius: u32) {
     let w = width as usize;
     let h = height as usize;
-    let radius: usize = 10; // kernel half-width → full kernel = 2*radius+1 = 21 px wide
+    let radius: usize = (radius as usize).max(1); // kernel half-width → full kernel = 2*radius+1
     let pixel_count = w * h * 4;
 
     // Work on u32 sums to avoid overflow (max sum per channel: 255 × 41 = 10 455 < 2^32)

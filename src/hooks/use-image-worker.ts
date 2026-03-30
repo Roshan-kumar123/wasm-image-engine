@@ -84,7 +84,7 @@ export function useImageWorker() {
   }, [setProcessedImageUrl, setIsProcessing, setWorkerError, setProcessingTimeMs]);
 
   const processImage = useCallback(
-    (imageData: ImageData, filter: FilterType) => {
+    (imageData: ImageData, filter: FilterType, parameter?: number) => {
       if (!workerRef.current) return;
       setWorkerError(null);
       setIsProcessing(true);
@@ -100,7 +100,7 @@ export function useImageWorker() {
 
       // Transfer ownership of the cloned buffer to the worker — zero structured-clone cost.
       workerRef.current.postMessage(
-        { type: "PROCESS_IMAGE", payload: { imageData: cloned, filter } },
+        { type: "PROCESS_IMAGE", payload: { imageData: cloned, filter, parameter } },
         [cloned.data.buffer],
       );
     },

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Zap, ShieldCheck, Cpu, ImageDown } from 'lucide-react';
+import { Zap, ShieldCheck, Gauge, Workflow, ImageDown } from 'lucide-react';
 import { DropzoneArea } from './DropzoneArea';
 import { useEditorStore } from '../store/use-editor-store';
 import { fileToImageData } from '../utils/file-to-image-data';
@@ -30,20 +30,20 @@ const SAMPLE_IMAGES = [
 // ── Feature cards data ────────────────────────────────────────────────────────
 const FEATURES = [
   {
-    icon: Zap,
-    title: 'Rust / WebAssembly Speed',
+    icon: Gauge,
+    title: 'Zero Lag Experience',
     description:
-      'Pixel processing runs as hand-optimised Wasm bytecode — near-native speed in the browser with zero server round-trips.',
+      'Edits apply instantly — no loading bars, no waiting. Rust compiled to WebAssembly delivers near-native speed directly in your browser.',
   },
   {
-    icon: Cpu,
-    title: 'Off-Main-Thread',
+    icon: Workflow,
+    title: 'Uninterrupted Workflow',
     description:
-      'All computation lives inside a Web Worker. The UI stays silky-smooth at 60 fps while the engine crunches a 4K frame.',
+      'All heavy processing runs in a background Web Worker. Your browser never freezes — keep scrolling, clicking, and typing while edits complete.',
   },
   {
     icon: ShieldCheck,
-    title: '100 % Private',
+    title: '100% Private',
     description:
       'Your images never leave your device. No uploads, no cloud calls — every pixel stays local, every time.',
   },
@@ -90,15 +90,14 @@ export function LandingPage({ onImageData }: LandingPageProps) {
         {/* Pill badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-accent/30 bg-accent/10 text-accent text-xs font-semibold tracking-wide">
           <Zap className="w-3 h-3" />
-          Rust · WebAssembly · Web Workers
+          Lightning-Fast Image Studio
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white leading-tight">
-          High-Performance{' '}
-          <span className="bg-gradient-to-r from-accent to-violet-400 bg-clip-text text-transparent">
-            In-Browser
-          </span>{' '}
-          Image Engine
+          Professional Photo Editing,{' '}
+          <span className="bg-linear-to-r from-accent to-violet-400 bg-clip-text text-transparent">
+            Instantly in your Browser
+          </span>
         </h1>
 
         <p className="text-base text-white/50 max-w-md leading-relaxed">
@@ -136,7 +135,7 @@ export function LandingPage({ onImageData }: LandingPageProps) {
                   loading="lazy"
                 />
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent" />
 
                 {/* Label / spinner */}
                 <div className="absolute bottom-0 inset-x-0 p-2 flex items-center justify-between">
@@ -145,7 +144,7 @@ export function LandingPage({ onImageData }: LandingPageProps) {
                   </span>
                   {isLoading ? (
                     <svg
-                      className="animate-spin w-3.5 h-3.5 text-accent flex-shrink-0"
+                      className="animate-spin w-3.5 h-3.5 text-accent shrink-0"
                       viewBox="0 0 24 24"
                       fill="none"
                     >
@@ -177,7 +176,7 @@ export function LandingPage({ onImageData }: LandingPageProps) {
             key={title}
             className="flex flex-col gap-3 p-5 rounded-2xl border border-white/8 bg-white/4 backdrop-blur-sm hover:border-accent/30 hover:bg-white/6 transition-all duration-200"
           >
-            <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/20 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-accent/15 border border-accent/20 flex items-center justify-center shrink-0">
               <Icon className="w-4.5 h-4.5 text-accent" />
             </div>
             <div>

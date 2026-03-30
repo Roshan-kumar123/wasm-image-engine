@@ -10,6 +10,7 @@ export interface ProcessImageMessage {
   payload: {
     imageData: ImageData;
     filter: FilterType;
+    parameter?: number;
   };
 }
 
