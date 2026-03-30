@@ -3,7 +3,7 @@ import { Trash2 } from "lucide-react";
 import { useImageWorker } from "./hooks/use-image-worker";
 import { useEditorStore } from "./store/use-editor-store";
 import { EditorLayout } from "./components/EditorLayout";
-import { DropzoneArea } from "./components/DropzoneArea";
+import { LandingPage } from "./components/LandingPage";
 import { Sidebar } from "./components/Sidebar";
 import { Canvas } from "./components/Canvas";
 import { LoadingSpinner } from "./components/LoadingSpinner";
@@ -23,7 +23,7 @@ export default function App() {
   const setActiveFilter = useEditorStore((s) => s.setActiveFilter);
   const reset = useEditorStore((s) => s.reset);
 
-  // Called by DropzoneArea once the dropped File has been decoded to ImageData
+  // Called by DropzoneArea / LandingPage once a File has been decoded to ImageData
   const handleImageData = useCallback((imageData: ImageData) => {
     imageDataRef.current = imageData;
   }, []);
@@ -33,15 +33,12 @@ export default function App() {
     (filter: FilterType) => {
       if (!imageDataRef.current) return;
       setActiveFilter(filter);
-      // processImage clones the ImageData internally before transferring it,
-      // so imageDataRef.current stays pristine for subsequent filter changes.
       processImage(imageDataRef.current, filter);
     },
     [setActiveFilter, processImage],
   );
 
-  // ── Clear / Reset Flow ───────────────────────────────────────────────────
-  // Revoke the active blob URL before resetting state to prevent memory leaks.
+  // ── Clear / Reset Flow ────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
     revokeProcessedUrl();
     imageDataRef.current = null;
@@ -52,17 +49,17 @@ export default function App() {
 
   return (
     <EditorLayout
+      hasImage={hasImage}
       sidebar={
         <Sidebar onFilterSelect={handleFilterSelect} hasImage={hasImage} />
       }
       main={
-        <div className="flex flex-col flex-1 gap-4 p-5 overflow-hidden min-h-0">
-          {/* Header row */}
-          <div className="flex items-center justify-between shrink-0">
-            <h2 className="text-white/60 text-sm font-medium">
-              {hasImage ? "Editor" : "Upload an image to get started"}
-            </h2>
-            {hasImage && (
+        hasImage ? (
+          // ── Editor mode ────────────────────────────────────────────────────
+          <div className="flex flex-col flex-1 gap-4 p-5 overflow-hidden min-h-0">
+            {/* Header row */}
+            <div className="flex items-center justify-between shrink-0">
+              <h2 className="text-white/60 text-sm font-medium">Editor</h2>
               <button
                 onClick={handleClear}
                 disabled={isProcessing}
@@ -71,22 +68,22 @@ export default function App() {
                 <Trash2 className="w-3.5 h-3.5" />
                 Clear image
               </button>
-            )}
-          </div>
+            </div>
 
-          {/* Dropzone — only visible when no image is loaded */}
-          {!hasImage && <DropzoneArea onImageData={handleImageData} />}
-
-          {/* Canvas area — wraps in ErrorBoundary for Wasm/Worker panic resilience */}
-          {hasImage && (
+            {/* Canvas area */}
             <div className="relative flex-1 overflow-hidden min-h-0 rounded-xl bg-white/3">
               <ErrorBoundary onReset={handleClear}>
                 <Canvas />
                 {isProcessing && <LoadingSpinner />}
               </ErrorBoundary>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          // ── Landing mode ───────────────────────────────────────────────────
+          <div className="flex-1 overflow-y-auto">
+            <LandingPage onImageData={handleImageData} />
+          </div>
+        )
       }
     />
   );

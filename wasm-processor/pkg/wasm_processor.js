@@ -1,9 +1,17 @@
 /* @ts-self-types="./wasm_processor.d.ts" */
 
 /**
- * Applies a 3×3 box blur to RGBA image data in place.
- * Allocates a separate source buffer to avoid read-write corruption during the pass.
- * Border pixels use clamped neighbor coordinates.
+ * Applies a large-radius box blur using an optimised two-pass (horizontal then
+ * vertical) sliding-window algorithm.
+ *
+ * Complexity: O(width × height) — independent of radius, unlike the naïve
+ * O(width × height × radius²) nested-loop approach. A sliding window maintains
+ * a running sum: when the window moves one pixel, subtract the outgoing left
+ * pixel and add the incoming right pixel, making each pixel O(1) regardless of
+ * how wide the kernel is.
+ *
+ * Two passes (H then V) approximate a 2-D box blur accurately because a box
+ * filter is separable: blur(H) ∘ blur(V) ≡ blur(2-D box).
  * @param {Uint8Array} data
  * @param {number} width
  * @param {number} height

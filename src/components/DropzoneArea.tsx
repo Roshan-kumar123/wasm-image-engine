@@ -2,39 +2,10 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud } from 'lucide-react';
 import { useEditorStore } from '../store/use-editor-store';
+import { fileToImageData } from '../utils/file-to-image-data';
 
 interface DropzoneAreaProps {
   onImageData: (imageData: ImageData) => void;
-}
-
-function fileToImageData(file: File): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Could not acquire 2D canvas context'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(objectUrl);
-      resolve(imageData);
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Image failed to load'));
-    };
-
-    img.src = objectUrl;
-  });
 }
 
 export function DropzoneArea({ onImageData }: DropzoneAreaProps) {
@@ -63,11 +34,11 @@ export function DropzoneArea({ onImageData }: DropzoneAreaProps) {
       {...getRootProps()}
       className={[
         'flex flex-col items-center justify-center gap-3',
-        'h-48 rounded-2xl border-2 border-dashed cursor-pointer',
-        'transition-colors duration-200 select-none',
+        'h-44 rounded-2xl border-2 border-dashed cursor-pointer',
+        'transition-all duration-200 select-none',
         isDragActive
-          ? 'border-accent bg-accent/10'
-          : 'border-white/20 hover:border-accent/60 bg-white/5',
+          ? 'border-accent bg-accent/10 scale-[1.01]'
+          : 'border-white/20 hover:border-accent/60 bg-white/5 hover:bg-white/8',
       ].join(' ')}
     >
       <input {...getInputProps()} />

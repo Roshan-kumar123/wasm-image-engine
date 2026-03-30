@@ -7,6 +7,7 @@ interface EditorState {
   isProcessing: boolean;
   activeFilter: FilterType | null;
   workerError: string | null;
+  processingTimeMs: number | null;
 }
 
 interface EditorActions {
@@ -15,6 +16,7 @@ interface EditorActions {
   setIsProcessing: (processing: boolean) => void;
   setActiveFilter: (filter: FilterType | null) => void;
   setWorkerError: (error: string | null) => void;
+  setProcessingTimeMs: (ms: number | null) => void;
   reset: () => void;
 }
 
@@ -24,6 +26,7 @@ const initialState: EditorState = {
   isProcessing: false,
   activeFilter: null,
   workerError: null,
+  processingTimeMs: null,
 };
 
 export const useEditorStore = create<EditorState & EditorActions>((set) => ({
@@ -33,5 +36,6 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
   setIsProcessing: (processing) => set({ isProcessing: processing }),
   setActiveFilter: (filter) => set({ activeFilter: filter }),
   setWorkerError: (error) => set({ workerError: error }),
+  setProcessingTimeMs: (ms) => set({ processingTimeMs: ms }),
   reset: () => set(initialState),
 }));

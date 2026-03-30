@@ -3,14 +3,15 @@ import type { ReactNode } from 'react';
 interface EditorLayoutProps {
   sidebar: ReactNode;
   main: ReactNode;
+  hasImage: boolean;
 }
 
-// Pure layout shell. Named slot props (`sidebar`, `main`) make the intent
-// explicit and let TypeScript enforce that both areas are always provided.
-export function EditorLayout({ sidebar, main }: EditorLayoutProps) {
+// Pure layout shell. The sidebar is hidden on the landing page (no image loaded)
+// so recruiters see the full-width hero without a confusing empty filter panel.
+export function EditorLayout({ sidebar, main, hasImage }: EditorLayoutProps) {
   return (
     <div className="flex h-screen bg-canvas-bg text-white overflow-hidden">
-      {sidebar}
+      {hasImage && sidebar}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {main}
       </main>

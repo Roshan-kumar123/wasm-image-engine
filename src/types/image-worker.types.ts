@@ -21,6 +21,7 @@ export interface ProcessCompleteMessage {
   type: 'PROCESS_COMPLETE';
   payload: {
     imageData: ImageData;
+    processingTimeMs: number;
   };
 }
 

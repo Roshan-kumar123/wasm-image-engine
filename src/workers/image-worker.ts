@@ -89,6 +89,10 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
     const uint8View = new Uint8Array(imageData.data.buffer);
     // ──────────────────────────────────────────────────────────────────────────
 
+    // ── Performance Telemetry ─────────────────────────────────────────────────
+    // performance.now() is available natively in Worker scope (no import needed).
+    const t0 = performance.now();
+
     // Apply the selected filter directly on the memory view.
     switch (filter) {
       case "grayscale":
@@ -107,12 +111,14 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
       }
     }
 
+    const processingTimeMs = performance.now() - t0;
+
     // ── Zero-Copy Transferable ────────────────────────────────────────────────
     // Transfer ownership of the underlying ArrayBuffer back to the main thread.
     // The main thread receives the data instantly with no structured-clone copy.
     const response: WorkerOutgoingMessage = {
       type: "PROCESS_COMPLETE",
-      payload: { imageData },
+      payload: { imageData, processingTimeMs },
     };
     self.postMessage(response, [imageData.data.buffer]);
   } catch (err) {

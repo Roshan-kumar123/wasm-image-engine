@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas-bg: oklch(0.15 0.02 250);
-  --color-sidebar-bg: oklch(0.12 0.02 250);
-  --color-accent: oklch(0.65 0.2 260);
-  --color-accent-hover: oklch(0.72 0.22 260);
+  /* ── Core palette ─────────────────────────────────────────────────────── */
+  --color-canvas-bg: oklch(0.13 0.02 255);
+  --color-sidebar-bg: oklch(0.10 0.025 255);
+  --color-accent: oklch(0.65 0.2 265);
+  --color-accent-hover: oklch(0.72 0.22 265);
+
+  /* ── Glass surfaces ───────────────────────────────────────────────────── */
+  --color-glass: oklch(1 0 0 / 0.04);
+  --color-glass-border: oklch(1 0 0 / 0.08);
+}
+
+/* Smooth scrollbar for the landing page */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 0.12) transparent;
 }

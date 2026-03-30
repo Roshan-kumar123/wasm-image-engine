@@ -13,6 +13,7 @@ export function useImageWorker() {
   const setProcessedImageUrl = useEditorStore((s) => s.setProcessedImageUrl);
   const setIsProcessing = useEditorStore((s) => s.setIsProcessing);
   const setWorkerError = useEditorStore((s) => s.setWorkerError);
+  const setProcessingTimeMs = useEditorStore((s) => s.setProcessingTimeMs);
 
   useEffect(() => {
     // new URL(..., import.meta.url) is the Vite-canonical pattern for worker bundling.
@@ -55,6 +56,7 @@ export function useImageWorker() {
         prevUrlRef.current = url;
 
         setProcessedImageUrl(url);
+        setProcessingTimeMs(payload.processingTimeMs);
         setWorkerError(null);
       } else {
         // PROCESS_ERROR
@@ -79,7 +81,7 @@ export function useImageWorker() {
         prevUrlRef.current = null;
       }
     };
-  }, [setProcessedImageUrl, setIsProcessing, setWorkerError]);
+  }, [setProcessedImageUrl, setIsProcessing, setWorkerError, setProcessingTimeMs]);
 
   const processImage = useCallback(
     (imageData: ImageData, filter: FilterType) => {

@@ -27,7 +27,7 @@ const FILTERS: FilterConfig[] = [
   {
     id: 'blur',
     label: 'Box Blur',
-    description: '3×3 kernel',
+    description: 'Two-pass radius blur',
     Icon: Layers,
   },
 ];
