@@ -12,14 +12,21 @@ export type FilterType =
   | 'sharpen'
   | 'sobel';
 
+// ─── Filter stack layer (one entry per applied filter) ───────────────────────
+
+export interface FilterLayer {
+  id: string;       // unique per layer (crypto.randomUUID or nanoid)
+  type: FilterType;
+  value: number;    // UI parameter: 0-100 for most; 1-40 for blur; 0-100 for sharpen/sobel
+}
+
 // ─── Messages sent TO the worker ────────────────────────────────────────────
 
 export interface ProcessImageMessage {
   type: 'PROCESS_IMAGE';
   payload: {
     imageData: ImageData;
-    filter: FilterType;
-    parameter?: number;
+    filterStack: FilterLayer[];   // ordered array — applied left to right
   };
 }
 

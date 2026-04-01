@@ -11,24 +11,22 @@ import { TopActionBar } from "./components/TopActionBar";
 import type { ViewMode } from "./components/TopActionBar";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import type { FilterType } from "./types/image-worker.types";
 
 export default function App() {
-  const { processImage, revokeProcessedUrl } = useImageWorker();
+  const { processStack, revokeProcessedUrl } = useImageWorker();
 
+  // Cached decoded ImageData — never mutated, always cloned before sending to worker
   const imageDataRef = useRef<ImageData | null>(null);
 
-  // View mode: split (slider compare) vs single (hold-to-compare)
   const [viewMode, setViewMode] = useState<ViewMode>("split");
-  // Compare: true while user holds the Compare/Single button
   const [isComparing, setIsComparing] = useState(false);
 
   const isProcessing = useEditorStore((s) => s.isProcessing);
   const originalImage = useEditorStore((s) => s.originalImage);
   const processedImageUrl = useEditorStore((s) => s.processedImageUrl);
-  const filterParameter = useEditorStore((s) => s.filterParameter);
+  const filterStack = useEditorStore((s) => s.filterStack);
   const setOriginalImage = useEditorStore((s) => s.setOriginalImage);
-  const setActiveFilter = useEditorStore((s) => s.setActiveFilter);
+  const clearStack = useEditorStore((s) => s.clearStack);
   const reset = useEditorStore((s) => s.reset);
 
   // Called by DropzoneArea / LandingPage once a File has been decoded to ImageData
@@ -36,17 +34,20 @@ export default function App() {
     imageDataRef.current = imageData;
   }, []);
 
-  // Called when the user clicks a filter button in the Sidebar
-  const handleFilterSelect = useCallback(
-    (filter: FilterType, parameter?: number) => {
-      if (!imageDataRef.current) return;
-      setActiveFilter(filter);
-      processImage(imageDataRef.current, filter, parameter);
-    },
-    [setActiveFilter, processImage, filterParameter],
-  );
+  // Reactive pipeline — fires on every filterStack reference change (every store mutation).
+  // Ghost-filter fix: empty stack explicitly clears the stale processed URL.
+  useEffect(() => {
+    if (!imageDataRef.current) return;
+    if (filterStack.length === 0) {
+      revokeProcessedUrl();
+      useEditorStore.setState({ processedImageUrl: null, processingTimeMs: null });
+      return;
+    }
+    processStack(imageDataRef.current, filterStack);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStack]);
 
-  // ── Upload New: replace image without leaving the editor ─────────────────
+  // ── Upload New ────────────────────────────────────────────────────────────
   const handleUploadNew = useCallback(async (file: File) => {
     revokeProcessedUrl();
     const imageData = await fileToImageData(file);
@@ -56,18 +57,13 @@ export default function App() {
     imageDataRef.current = imageData;
   }, [revokeProcessedUrl, reset, setOriginalImage]);
 
-  // ── Reset: revert to original without clearing the image ─────────────────
+  // ── Reset: clear filter stack + processed image, keep the original ────────
   const handleReset = useCallback(() => {
     revokeProcessedUrl();
-    useEditorStore.setState({
-      processedImageUrl: null,
-      activeFilter: null,
-      processingTimeMs: null,
-      filterParameter: 10,
-    });
-  }, [revokeProcessedUrl]);
+    clearStack();
+  }, [revokeProcessedUrl, clearStack]);
 
-  // ── Export HD: download the processed image ───────────────────────────────
+  // ── Export ────────────────────────────────────────────────────────────────
   const handleExport = useCallback(() => {
     if (!processedImageUrl) return;
     const a = document.createElement("a");
@@ -96,9 +92,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (hasImage) {
-      window.history.pushState({ view: "editor" }, "", "#editor");
-    }
+    if (hasImage) window.history.pushState({ view: "editor" }, "", "#editor");
   }, [hasImage]);
 
   useEffect(() => {
@@ -118,14 +112,11 @@ export default function App() {
       hasImage={hasImage}
       sidebar={
         <Sidebar
-          onFilterSelect={handleFilterSelect}
           hasImage={hasImage}
-          onParameterChange={(filter, value) => handleFilterSelect(filter, value)}
         />
       }
       main={
         hasImage ? (
-          // ── Editor mode ────────────────────────────────────────────────
           <div className="flex flex-col flex-1 gap-3 p-4 sm:p-5 overflow-hidden min-h-0">
             {/* Nav */}
             <div className="flex items-center shrink-0">
@@ -139,7 +130,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Pro toolbar */}
             <TopActionBar
               isProcessing={isProcessing}
               hasProcessed={!!processedImageUrl}
@@ -152,7 +142,6 @@ export default function App() {
               onExport={handleExport}
             />
 
-            {/* Canvas — floating card */}
             <div className="relative flex-1 overflow-hidden min-h-0 rounded-2xl border border-border-subtle bg-surface-overlay shadow-[0_8px_32px_rgba(0,0,0,0.35),0_2px_8px_rgba(0,0,0,0.2)]">
               <ErrorBoundary onReset={handleClear}>
                 <Canvas viewMode={viewMode} isComparing={isComparing} />
@@ -161,7 +150,6 @@ export default function App() {
             </div>
           </div>
         ) : (
-          // ── Landing mode ───────────────────────────────────────────────
           <div className="flex-1 overflow-y-auto">
             <LandingPage onImageData={handleImageData} />
           </div>
