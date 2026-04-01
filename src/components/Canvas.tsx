@@ -101,7 +101,7 @@ export function Canvas({ viewMode, isComparing }: CanvasProps) {
   // ── Split view: before/after slider ─────────────────────────────────────────
   if (processedImageUrl && viewMode === 'split') {
     return (
-      <div className="relative flex-1 w-full h-full overflow-hidden rounded-xl">
+      <div className="relative flex-1 w-full h-full overflow-hidden rounded-xl" style={{ touchAction: 'none' }}>
         <ReactCompareSlider
           handle={<SliderHandle />}
           itemOne={
@@ -145,9 +145,10 @@ export function Canvas({ viewMode, isComparing }: CanvasProps) {
         alt="Original image preview"
         className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
       />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-md bg-black/60 text-white/90 text-sm font-medium shadow-xl z-10 animate-pulse pointer-events-none whitespace-nowrap">
-        <PanelLeft className="w-4 h-4 text-accent shrink-0" />
-        Select a filter from the sidebar to begin
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 rounded-full backdrop-blur-md bg-black/60 text-white/90 text-xs md:text-sm font-medium shadow-xl z-10 animate-pulse pointer-events-none whitespace-nowrap">
+        <PanelLeft className="w-3.5 h-3.5 md:w-4 md:h-4 text-accent shrink-0" />
+        <span className="inline md:hidden">Tap a filter below to begin</span>
+        <span className="hidden md:inline">Select a filter from the sidebar to begin</span>
       </div>
     </div>
   );

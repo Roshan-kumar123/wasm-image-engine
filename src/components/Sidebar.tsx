@@ -143,7 +143,7 @@ export function Sidebar({ hasImage }: SidebarProps) {
   const activeTypes = new Set(filterStack.map((l) => l.type));
 
   return (
-    <aside className="w-64 shrink-0 flex flex-col bg-sidebar-bg border-r border-border-muted overflow-hidden">
+    <aside className="w-full h-[50dvh] md:h-full md:w-80 shrink-0 flex flex-col bg-sidebar-bg border-t border-border-muted md:border-t-0 md:border-r overflow-hidden">
 
       {/* ── Brand ──────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4 shrink-0">
@@ -154,7 +154,7 @@ export function Sidebar({ hasImage }: SidebarProps) {
       </div>
 
       {/* ── Filter Library ─────────────────────────────────────────────────── */}
-      <div className="px-3 pb-3 shrink-0">
+      <div className="px-3 pb-3 shrink-0 overflow-y-auto max-h-[45%] md:max-h-none md:overflow-visible">
         <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-text-faint">
           Filter Library
         </p>
