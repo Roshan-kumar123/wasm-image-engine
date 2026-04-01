@@ -40,10 +40,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle className="w-7 h-7 text-red-400" />
           </div>
           <div>
-            <h3 className="text-white font-semibold text-base mb-1">
+            <h3 className="text-text-primary font-semibold text-base mb-1">
               Processing Failed
             </h3>
-            <p className="text-white/50 text-sm max-w-xs">
+            <p className="text-text-muted text-sm max-w-xs">
               {this.state.errorMessage}
             </p>
           </div>

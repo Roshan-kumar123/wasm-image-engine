@@ -1,38 +1,14 @@
-import { useRef, useCallback, useEffect } from "react";
-import { ArrowLeft, Download } from "lucide-react";
+import { useRef, useCallback, useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useImageWorker } from "./hooks/use-image-worker";
 import { useEditorStore } from "./store/use-editor-store";
-
-// Inline export button — reads processedImageUrl directly from the store.
-// Rendered in the editor header; hidden until a filter has been applied.
-function ExportButton({ isProcessing }: { isProcessing: boolean }) {
-  const processedImageUrl = useEditorStore((s) => s.processedImageUrl);
-  if (!processedImageUrl) return null;
-
-  const handleDownload = () => {
-    const a = document.createElement("a");
-    a.href = processedImageUrl;
-    a.download = "edited-image.jpg";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  return (
-    <button
-      onClick={handleDownload}
-      disabled={isProcessing}
-      className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent hover:bg-accent-hover text-white transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-accent/20"
-    >
-      <Download className="w-3.5 h-3.5" />
-      Export
-    </button>
-  );
-}
+import { fileToImageData } from "./utils/file-to-image-data";
 import { EditorLayout } from "./components/EditorLayout";
 import { LandingPage } from "./components/LandingPage";
 import { Sidebar } from "./components/Sidebar";
 import { Canvas } from "./components/Canvas";
+import { TopActionBar } from "./components/TopActionBar";
+import type { ViewMode } from "./components/TopActionBar";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import type { FilterType } from "./types/image-worker.types";
@@ -40,14 +16,18 @@ import type { FilterType } from "./types/image-worker.types";
 export default function App() {
   const { processImage, revokeProcessedUrl } = useImageWorker();
 
-  // Cache decoded ImageData between filter clicks so we don't re-decode the
-  // File on every selection — the Wasm functions mutate in place, so we always
-  // clone this ref before sending to the worker.
   const imageDataRef = useRef<ImageData | null>(null);
+
+  // View mode: split (slider compare) vs single (hold-to-compare)
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  // Compare: true while user holds the Compare/Single button
+  const [isComparing, setIsComparing] = useState(false);
 
   const isProcessing = useEditorStore((s) => s.isProcessing);
   const originalImage = useEditorStore((s) => s.originalImage);
+  const processedImageUrl = useEditorStore((s) => s.processedImageUrl);
   const filterParameter = useEditorStore((s) => s.filterParameter);
+  const setOriginalImage = useEditorStore((s) => s.setOriginalImage);
   const setActiveFilter = useEditorStore((s) => s.setActiveFilter);
   const reset = useEditorStore((s) => s.reset);
 
@@ -61,14 +41,44 @@ export default function App() {
     (filter: FilterType, parameter?: number) => {
       if (!imageDataRef.current) return;
       setActiveFilter(filter);
-      // When called from a button click, parameter is undefined → worker uses its own default.
-      // When called from a slider drag, parameter carries the explicit value.
       processImage(imageDataRef.current, filter, parameter);
     },
     [setActiveFilter, processImage, filterParameter],
   );
 
-  // ── Clear / Reset Flow ────────────────────────────────────────────────────
+  // ── Upload New: replace image without leaving the editor ─────────────────
+  const handleUploadNew = useCallback(async (file: File) => {
+    revokeProcessedUrl();
+    const imageData = await fileToImageData(file);
+    imageDataRef.current = imageData;
+    reset();
+    setOriginalImage(file);
+    imageDataRef.current = imageData;
+  }, [revokeProcessedUrl, reset, setOriginalImage]);
+
+  // ── Reset: revert to original without clearing the image ─────────────────
+  const handleReset = useCallback(() => {
+    revokeProcessedUrl();
+    useEditorStore.setState({
+      processedImageUrl: null,
+      activeFilter: null,
+      processingTimeMs: null,
+      filterParameter: 10,
+    });
+  }, [revokeProcessedUrl]);
+
+  // ── Export HD: download the processed image ───────────────────────────────
+  const handleExport = useCallback(() => {
+    if (!processedImageUrl) return;
+    const a = document.createElement("a");
+    a.href = processedImageUrl;
+    a.download = "edited-image.jpg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, [processedImageUrl]);
+
+  // ── Clear / go home ───────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
     revokeProcessedUrl();
     imageDataRef.current = null;
@@ -78,25 +88,19 @@ export default function App() {
   const hasImage = originalImage !== null;
 
   // ── History API ───────────────────────────────────────────────────────────
-  // On mount: if the user hard-refreshed on #editor, the store is empty but the
-  // hash is stale. Strip it so the URL matches the landing page state.
   useEffect(() => {
-    if (!hasImage && window.location.hash === '#editor') {
-      window.history.replaceState(null, '', window.location.pathname);
+    if (!hasImage && window.location.hash === "#editor") {
+      window.history.replaceState(null, "", window.location.pathname);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Push a history entry when the editor opens so the browser back button
-  // navigates back to the landing page instead of leaving the app entirely.
   useEffect(() => {
     if (hasImage) {
-      window.history.pushState({ view: 'editor' }, '', '#editor');
+      window.history.pushState({ view: "editor" }, "", "#editor");
     }
   }, [hasImage]);
 
-  // Listen for the browser back button: popstate fires when the user navigates
-  // back from #editor → '', which should close the editor and show the landing page.
   useEffect(() => {
     const onPopState = () => {
       if (originalImage !== null) {
@@ -105,43 +109,59 @@ export default function App() {
         reset();
       }
     };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, [originalImage, revokeProcessedUrl, reset]);
 
   return (
     <EditorLayout
       hasImage={hasImage}
       sidebar={
-        <Sidebar onFilterSelect={handleFilterSelect} hasImage={hasImage} onParameterChange={(filter, value) => handleFilterSelect(filter, value)} />
+        <Sidebar
+          onFilterSelect={handleFilterSelect}
+          hasImage={hasImage}
+          onParameterChange={(filter, value) => handleFilterSelect(filter, value)}
+        />
       }
       main={
         hasImage ? (
-          // ── Editor mode ────────────────────────────────────────────────────
-          <div className="flex flex-col flex-1 gap-4 p-5 overflow-hidden min-h-0">
-            {/* Header row */}
-            <div className="flex items-center justify-between shrink-0">
+          // ── Editor mode ────────────────────────────────────────────────
+          <div className="flex flex-col flex-1 gap-3 p-4 sm:p-5 overflow-hidden min-h-0">
+            {/* Nav */}
+            <div className="flex items-center shrink-0">
               <button
                 onClick={() => window.history.back()}
                 disabled={isProcessing}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white/80 hover:bg-white/8 transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary hover:bg-glass transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to Home
               </button>
-              <ExportButton isProcessing={isProcessing} />
             </div>
 
-            {/* Canvas area */}
-            <div className="relative flex-1 overflow-hidden min-h-0 rounded-xl bg-white/3">
+            {/* Pro toolbar */}
+            <TopActionBar
+              isProcessing={isProcessing}
+              hasProcessed={!!processedImageUrl}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              onUploadNew={handleUploadNew}
+              onReset={handleReset}
+              onCompareStart={() => setIsComparing(true)}
+              onCompareEnd={() => setIsComparing(false)}
+              onExport={handleExport}
+            />
+
+            {/* Canvas — floating card */}
+            <div className="relative flex-1 overflow-hidden min-h-0 rounded-2xl border border-border-subtle bg-surface-overlay shadow-[0_8px_32px_rgba(0,0,0,0.35),0_2px_8px_rgba(0,0,0,0.2)]">
               <ErrorBoundary onReset={handleClear}>
-                <Canvas />
+                <Canvas viewMode={viewMode} isComparing={isComparing} />
                 {isProcessing && <LoadingSpinner />}
               </ErrorBoundary>
             </div>
           </div>
         ) : (
-          // ── Landing mode ───────────────────────────────────────────────────
+          // ── Landing mode ───────────────────────────────────────────────
           <div className="flex-1 overflow-y-auto">
             <LandingPage onImageData={handleImageData} />
           </div>

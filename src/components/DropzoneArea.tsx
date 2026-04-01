@@ -38,21 +38,21 @@ export function DropzoneArea({ onImageData }: DropzoneAreaProps) {
         'transition-all duration-200 select-none',
         isDragActive
           ? 'border-accent bg-accent/10 scale-[1.01]'
-          : 'border-white/20 hover:border-accent/60 bg-white/5 hover:bg-white/8',
+          : 'border-border-subtle hover:border-accent/60 bg-glass hover:bg-surface-raised',
       ].join(' ')}
     >
       <input {...getInputProps()} />
       <UploadCloud
         className={[
           'w-9 h-9 transition-colors duration-200',
-          isDragActive ? 'text-accent' : 'text-white/30',
+          isDragActive ? 'text-accent' : 'text-text-faint',
         ].join(' ')}
       />
       <div className="text-center">
-        <p className="text-sm font-medium text-white/70">
+        <p className="text-sm font-medium text-text-secondary">
           {isDragActive ? 'Drop it here' : 'Drag & drop an image'}
         </p>
-        <p className="text-xs text-white/35 mt-0.5">
+        <p className="text-xs text-text-faint mt-0.5">
           or click to browse — PNG, JPG, WebP
         </p>
       </div>

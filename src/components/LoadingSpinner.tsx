@@ -22,7 +22,7 @@ export function LoadingSpinner() {
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
         />
       </svg>
-      <span className="text-white/60 text-sm font-medium tracking-wide">
+      <span className="text-text-secondary text-sm font-medium tracking-wide">
         Processing…
       </span>
     </div>

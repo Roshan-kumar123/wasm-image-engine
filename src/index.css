@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Core palette ─────────────────────────────────────────────────────── */
+  /* ── Core palette (dark is default) ──────────────────────────────────── */
   --color-canvas-bg: oklch(0.13 0.02 255);
   --color-sidebar-bg: oklch(0.10 0.025 255);
   --color-accent: oklch(0.65 0.2 265);
@@ -10,10 +10,63 @@
   /* ── Glass surfaces ───────────────────────────────────────────────────── */
   --color-glass: oklch(1 0 0 / 0.04);
   --color-glass-border: oklch(1 0 0 / 0.08);
+
+  /* ── Semantic surface tokens (dark default) ──────────────────────────── */
+  --color-surface: oklch(0.15 0.015 255);
+  --color-surface-raised: oklch(0.18 0.015 255);
+  --color-surface-overlay: oklch(0.12 0.02 255);
+  --color-border-subtle: oklch(1 0 0 / 0.08);
+  --color-border-muted: oklch(1 0 0 / 0.05);
+  --color-text-primary: oklch(0.97 0 0);
+  --color-text-secondary: oklch(0.97 0 0 / 0.7);
+  --color-text-muted: oklch(0.97 0 0 / 0.45);
+  --color-text-faint: oklch(0.97 0 0 / 0.25);
 }
 
-/* Smooth scrollbar for the landing page */
+/* ── Light mode overrides ──────────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-canvas-bg: oklch(0.965 0.005 260);
+    --color-sidebar-bg: oklch(0.975 0.003 260);
+    --color-surface: oklch(1 0 0);
+    --color-surface-raised: oklch(0.985 0.003 260);
+    --color-surface-overlay: oklch(0.97 0.005 260);
+    --color-border-subtle: oklch(0 0 0 / 0.1);
+    --color-border-muted: oklch(0 0 0 / 0.06);
+    --color-text-primary: oklch(0.15 0.02 255);
+    --color-text-secondary: oklch(0.15 0.02 255 / 0.7);
+    --color-text-muted: oklch(0.15 0.02 255 / 0.5);
+    --color-text-faint: oklch(0.15 0.02 255 / 0.25);
+    --color-glass: oklch(0 0 0 / 0.03);
+    --color-glass-border: oklch(0 0 0 / 0.08);
+  }
+}
+
+/* ── Action bar button variants ────────────────────────────────────────── */
+.bar-btn {
+  @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+         transition-all duration-150 select-none
+         disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer;
+}
+.bar-btn-subtle {
+  @apply text-text-secondary hover:text-text-primary hover:bg-glass;
+}
+.bar-btn-outline {
+  @apply text-text-secondary border border-border-subtle
+         hover:text-text-primary hover:bg-glass hover:border-border-subtle;
+}
+.bar-btn-primary {
+  @apply bg-accent text-white hover:bg-accent-hover shadow-sm shadow-accent/20;
+}
+
+/* Smooth scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: oklch(1 0 0 / 0.12) transparent;
+}
+
+@media (prefers-color-scheme: light) {
+  * {
+    scrollbar-color: oklch(0 0 0 / 0.15) transparent;
+  }
 }
