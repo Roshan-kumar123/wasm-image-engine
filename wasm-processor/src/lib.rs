@@ -31,6 +31,147 @@ pub fn apply_invert(data: &mut [u8], intensity: f32) {
     }
 }
 
+/// Adjusts brightness of RGBA image data in place.
+/// intensity 0.0 = full dark, 0.5 = no change, 1.0 = full bright.
+/// Zero-alloc — operates entirely on the incoming slice.
+#[wasm_bindgen]
+pub fn apply_brightness(data: &mut [u8], intensity: f32) {
+    let bias = (intensity * 2.0 - 1.0) * 255.0;
+    for pixel in data.chunks_exact_mut(4) {
+        let r = pixel[0] as f32;
+        let g = pixel[1] as f32;
+        let b = pixel[2] as f32;
+        pixel[0] = (r + bias).clamp(0.0, 255.0) as u8;
+        pixel[1] = (g + bias).clamp(0.0, 255.0) as u8;
+        pixel[2] = (b + bias).clamp(0.0, 255.0) as u8;
+        // pixel[3] (alpha) NEVER TOUCHED
+    }
+}
+
+/// Adjusts contrast of RGBA image data in place.
+/// intensity 0.0 = flat gray, 0.5 = no change, 1.0 = maximum contrast.
+/// Zero-alloc. All arithmetic on f32 — no u8 underflow risk.
+#[wasm_bindgen]
+pub fn apply_contrast(data: &mut [u8], intensity: f32) {
+    let factor = if intensity <= 0.5 {
+        intensity * 2.0
+    } else {
+        1.0 + (intensity - 0.5) * 4.0
+    };
+    for pixel in data.chunks_exact_mut(4) {
+        let r = pixel[0] as f32;
+        let g = pixel[1] as f32;
+        let b = pixel[2] as f32;
+        pixel[0] = ((r - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+        pixel[1] = ((g - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+        pixel[2] = ((b - 128.0) * factor + 128.0).clamp(0.0, 255.0) as u8;
+        // pixel[3] (alpha) NEVER TOUCHED
+    }
+}
+
+/// Applies sepia tone to RGBA image data in place, blended by intensity.
+/// intensity 0.0 = original, 1.0 = full sepia.
+/// Zero-alloc — standard sepia color matrix with lerp.
+#[wasm_bindgen]
+pub fn apply_sepia(data: &mut [u8], intensity: f32) {
+    for pixel in data.chunks_exact_mut(4) {
+        let r = pixel[0] as f32;
+        let g = pixel[1] as f32;
+        let b = pixel[2] as f32;
+        let tr = (0.393 * r + 0.769 * g + 0.189 * b).min(255.0);
+        let tg = (0.349 * r + 0.686 * g + 0.168 * b).min(255.0);
+        let tb = (0.272 * r + 0.534 * g + 0.131 * b).min(255.0);
+        pixel[0] = (r + (tr - r) * intensity) as u8;
+        pixel[1] = (g + (tg - g) * intensity) as u8;
+        pixel[2] = (b + (tb - b) * intensity) as u8;
+        // pixel[3] (alpha) NEVER TOUCHED
+    }
+}
+
+/// Adjusts saturation of RGBA image data in place.
+/// level 0.0 = fully desaturated (gray), 0.5 = original, 1.0 = 2× oversaturated.
+/// Zero-alloc. Uses BT.601 luminance for grayscale reference.
+#[wasm_bindgen]
+pub fn apply_saturation(data: &mut [u8], level: f32) {
+    let factor = level * 2.0;
+    for pixel in data.chunks_exact_mut(4) {
+        let r = pixel[0] as f32;
+        let g = pixel[1] as f32;
+        let b = pixel[2] as f32;
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        pixel[0] = (gray + (r - gray) * factor).clamp(0.0, 255.0) as u8;
+        pixel[1] = (gray + (g - gray) * factor).clamp(0.0, 255.0) as u8;
+        pixel[2] = (gray + (b - gray) * factor).clamp(0.0, 255.0) as u8;
+        // pixel[3] (alpha) NEVER TOUCHED
+    }
+}
+
+/// Applies a 3×3 sharpening convolution kernel, blended by intensity.
+/// Kernel: [0,-1,0; -1,5,-1; 0,-1,0].
+/// intensity 0.0 = original, 1.0 = full sharpen.
+/// Allocates a single source-buffer copy upfront. Border pixels are untouched.
+#[wasm_bindgen]
+pub fn apply_sharpen(data: &mut [u8], width: u32, height: u32, intensity: f32) {
+    let w = width as usize;
+    let h = height as usize;
+    let src = data.to_vec();
+
+    for y in 1..(h - 1) {
+        for x in 1..(w - 1) {
+            let idx = (y * w + x) * 4;
+            for c in 0..3_usize {
+                let center = src[idx + c] as f32;
+                let top    = src[((y - 1) * w + x) * 4 + c] as f32;
+                let bottom = src[((y + 1) * w + x) * 4 + c] as f32;
+                let left   = src[(y * w + (x - 1)) * 4 + c] as f32;
+                let right  = src[(y * w + (x + 1)) * 4 + c] as f32;
+                let sharp = (5.0 * center - top - bottom - left - right).clamp(0.0, 255.0);
+                data[idx + c] = (center + (sharp - center) * intensity).clamp(0.0, 255.0) as u8;
+            }
+            // pixel[3] (alpha) NEVER TOUCHED
+        }
+    }
+}
+
+/// Applies Sobel edge detection, blended by intensity.
+/// intensity 0.0 = original, 1.0 = full edge map (grayscale magnitude).
+/// Allocates a single source-buffer copy upfront. Border pixels are untouched.
+#[wasm_bindgen]
+pub fn apply_sobel_edge_detection(data: &mut [u8], width: u32, height: u32, intensity: f32) {
+    let w = width as usize;
+    let h = height as usize;
+    let src = data.to_vec();
+
+    // Luminance from RGBA at a given (row, col) — reads from src, never from data.
+    let lum = |yy: usize, xx: usize| -> f32 {
+        let i = (yy * w + xx) * 4;
+        0.299 * src[i] as f32 + 0.587 * src[i + 1] as f32 + 0.114 * src[i + 2] as f32
+    };
+
+    for y in 1..(h - 1) {
+        for x in 1..(w - 1) {
+            let idx = (y * w + x) * 4;
+
+            // Sobel Gx: [-1,0,+1; -2,0,+2; -1,0,+1]
+            let gx = -lum(y - 1, x - 1) + lum(y - 1, x + 1)
+                   - 2.0 * lum(y, x - 1) + 2.0 * lum(y, x + 1)
+                   - lum(y + 1, x - 1) + lum(y + 1, x + 1);
+
+            // Sobel Gy: [-1,-2,-1; 0,0,0; +1,+2,+1]
+            let gy = -lum(y - 1, x - 1) - 2.0 * lum(y - 1, x) - lum(y - 1, x + 1)
+                   + lum(y + 1, x - 1) + 2.0 * lum(y + 1, x) + lum(y + 1, x + 1);
+
+            let mag = (gx * gx + gy * gy).sqrt().min(255.0);
+
+            for c in 0..3_usize {
+                let orig = src[idx + c] as f32;
+                data[idx + c] = (orig + (mag - orig) * intensity).clamp(0.0, 255.0) as u8;
+            }
+            // pixel[3] (alpha) NEVER TOUCHED
+        }
+    }
+}
+
 /// Applies a large-radius box blur using an optimised two-pass (horizontal then
 /// vertical) sliding-window algorithm.
 ///

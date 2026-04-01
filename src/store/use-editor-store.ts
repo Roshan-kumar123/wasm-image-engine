@@ -40,7 +40,15 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
   setActiveFilter: (filter) =>
     set({
       activeFilter: filter,
-      filterParameter: filter === 'blur' ? 10 : 100,
+      filterParameter: (() => {
+        switch (filter) {
+          case 'blur':        return 10;
+          case 'brightness':  return 50;
+          case 'contrast':    return 50;
+          case 'saturation':  return 50;
+          default:            return 100;
+        }
+      })(),
     }),
   setWorkerError: (error) => set({ workerError: error }),
   setProcessingTimeMs: (ms) => set({ processingTimeMs: ms }),

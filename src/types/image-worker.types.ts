@@ -1,7 +1,16 @@
 // Single source of truth for the postMessage protocol.
 // Imported by both the Web Worker and the main-thread hook.
 
-export type FilterType = 'grayscale' | 'invert' | 'blur';
+export type FilterType =
+  | 'grayscale'
+  | 'invert'
+  | 'blur'
+  | 'brightness'
+  | 'contrast'
+  | 'sepia'
+  | 'saturation'
+  | 'sharpen'
+  | 'sobel';
 
 // ─── Messages sent TO the worker ────────────────────────────────────────────
 

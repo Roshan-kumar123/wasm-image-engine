@@ -64,6 +64,12 @@ import __wbg_init, {
   apply_grayscale,
   apply_invert,
   apply_blur,
+  apply_brightness,
+  apply_contrast,
+  apply_sepia,
+  apply_saturation,
+  apply_sharpen,
+  apply_sobel_edge_detection,
 } from "../../wasm-processor/pkg/wasm_processor.js";
 import type {
   WorkerIncomingMessage,
@@ -94,7 +100,10 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
     const t0 = performance.now();
 
     // Convert the 0-100 UI parameter to the appropriate Rust argument per filter.
+    // "Zero-to-full" filters (grayscale, invert, sepia, sharpen, sobel): default 100 → 1.0
     const intensity = (parameter ?? 100) / 100.0;
+    // "Centered-at-50" filters (brightness, contrast, saturation): default 50 → 0.5 = no change
+    const level = (parameter ?? 50) / 100.0;
 
     // Apply the selected filter directly on the memory view.
     switch (filter) {
@@ -107,8 +116,25 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
       case "blur":
         apply_blur(uint8View, imageData.width, imageData.height, parameter ?? 10);
         break;
+      case "brightness":
+        apply_brightness(uint8View, level);
+        break;
+      case "contrast":
+        apply_contrast(uint8View, level);
+        break;
+      case "sepia":
+        apply_sepia(uint8View, intensity);
+        break;
+      case "saturation":
+        apply_saturation(uint8View, level);
+        break;
+      case "sharpen":
+        apply_sharpen(uint8View, imageData.width, imageData.height, intensity);
+        break;
+      case "sobel":
+        apply_sobel_edge_detection(uint8View, imageData.width, imageData.height, intensity);
+        break;
       default: {
-        // Exhaustiveness check — compile error if FilterType grows without updating this switch
         const _exhaustive: never = filter;
         throw new Error(`Unknown filter: ${String(_exhaustive)}`);
       }

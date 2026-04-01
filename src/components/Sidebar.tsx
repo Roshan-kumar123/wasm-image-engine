@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, Contrast, Layers } from 'lucide-react';
+import { Sun, Contrast, Layers, SunDim, CircleDot, Palette, Droplets, Sparkles, Scan } from 'lucide-react';
 import { useEditorStore } from '../store/use-editor-store';
 import type { FilterType } from '../types/image-worker.types';
 import type { FC } from 'react';
@@ -12,15 +12,27 @@ interface FilterConfig {
 }
 
 const FILTERS: FilterConfig[] = [
-  { id: 'grayscale', label: 'Grayscale', description: 'BT.601 luminance', Icon: Sun },
-  { id: 'invert', label: 'Invert', description: 'Negate RGB channels', Icon: Contrast },
-  { id: 'blur', label: 'Box Blur', description: 'Two-pass radius blur', Icon: Layers },
+  { id: 'grayscale',  label: 'Grayscale',      description: 'BT.601 luminance',     Icon: Sun },
+  { id: 'invert',     label: 'Invert',         description: 'Negate RGB channels',   Icon: Contrast },
+  { id: 'brightness', label: 'Brightness',      description: 'Lighten or darken',     Icon: SunDim },
+  { id: 'contrast',   label: 'Contrast',        description: 'Expand tonal range',    Icon: CircleDot },
+  { id: 'sepia',      label: 'Sepia',           description: 'Warm vintage tone',     Icon: Palette },
+  { id: 'saturation', label: 'Saturation',      description: 'Color vibrancy',        Icon: Droplets },
+  { id: 'blur',       label: 'Box Blur',        description: 'Two-pass radius blur',  Icon: Layers },
+  { id: 'sharpen',    label: 'Sharpen',         description: '3×3 unsharp kernel',    Icon: Sparkles },
+  { id: 'sobel',      label: 'Edge Detection',  description: 'Sobel gradient map',    Icon: Scan },
 ];
 
 const SLIDER_CONFIG: Record<FilterType, { min: number; max: number; label: string; unit: string; lowLabel: string; highLabel: string }> = {
-  grayscale: { min: 0, max: 100, label: 'Intensity', unit: '%', lowLabel: 'Off', highLabel: 'Full' },
-  invert:    { min: 0, max: 100, label: 'Intensity', unit: '%', lowLabel: 'Off', highLabel: 'Full' },
-  blur:      { min: 1, max: 40,  label: 'Radius',    unit: 'px', lowLabel: 'Subtle', highLabel: 'Heavy' },
+  grayscale:  { min: 0,  max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
+  invert:     { min: 0,  max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
+  brightness: { min: 0,  max: 100, label: 'Level',     unit: '%',  lowLabel: 'Dark',   highLabel: 'Bright' },
+  contrast:   { min: 0,  max: 100, label: 'Level',     unit: '%',  lowLabel: 'Flat',   highLabel: 'Sharp' },
+  sepia:      { min: 0,  max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
+  saturation: { min: 0,  max: 100, label: 'Level',     unit: '%',  lowLabel: 'Gray',   highLabel: 'Vivid' },
+  blur:       { min: 1,  max: 40,  label: 'Radius',    unit: 'px', lowLabel: 'Subtle', highLabel: 'Heavy' },
+  sharpen:    { min: 0,  max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Subtle', highLabel: 'Strong' },
+  sobel:      { min: 0,  max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Subtle', highLabel: 'Full' },
 };
 
 interface SidebarProps {
@@ -42,6 +54,13 @@ export function Sidebar({ onFilterSelect, hasImage, onParameterChange }: Sidebar
     setLocalSliderVal(filterParameter);
   }, [activeFilter, filterParameter]);
 
+  // Real-time: update local state + fire Wasm on every change for instant feedback.
+  const handleSliderInput = (value: number) => {
+    setLocalSliderVal(value);
+    setFilterParameter(value);
+    if (activeFilter) onParameterChange(activeFilter, value);
+  };
+
   return (
     <aside className="w-60 shrink-0 flex flex-col gap-6 p-5 bg-sidebar-bg border-r border-border-muted">
       {/* Brand */}
@@ -52,16 +71,16 @@ export function Sidebar({ onFilterSelect, hasImage, onParameterChange }: Sidebar
         <p className="text-text-faint text-xs mt-0.5">Rust · WebAssembly · React</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-widest text-text-faint mb-1">
+      {/* Filters — scrollable when list exceeds viewport */}
+      <div className="flex flex-col gap-1.5 overflow-y-auto min-h-0 flex-1">
+        <span className="text-xs font-semibold uppercase tracking-widest text-text-faint mb-1 shrink-0">
           Filters
         </span>
         {FILTERS.map(({ id, label, description, Icon }) => {
           const isActive = activeFilter === id;
           const slider = SLIDER_CONFIG[id];
           return (
-            <div key={id} className="flex flex-col gap-2">
+            <div key={id} className="flex flex-col gap-2 shrink-0">
               <button
                 disabled={disabled}
                 onClick={() => onFilterSelect(id)}
@@ -102,15 +121,7 @@ export function Sidebar({ onFilterSelect, hasImage, onParameterChange }: Sidebar
                     max={slider.max}
                     value={localSliderVal}
                     disabled={isProcessing}
-                    onChange={(e) => setLocalSliderVal(Number(e.target.value))}
-                    onMouseUp={() => {
-                      setFilterParameter(localSliderVal);
-                      if (activeFilter) onParameterChange(activeFilter, localSliderVal);
-                    }}
-                    onTouchEnd={() => {
-                      setFilterParameter(localSliderVal);
-                      if (activeFilter) onParameterChange(activeFilter, localSliderVal);
-                    }}
+                    onChange={(e) => handleSliderInput(Number(e.target.value))}
                     className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-border-subtle accent-accent disabled:opacity-40 disabled:cursor-not-allowed"
                   />
                   <div className="flex justify-between text-[10px] text-text-faint">
@@ -123,8 +134,6 @@ export function Sidebar({ onFilterSelect, hasImage, onParameterChange }: Sidebar
           );
         })}
       </div>
-
-      <div className="flex-1" />
     </aside>
   );
 }

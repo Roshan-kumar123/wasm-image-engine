@@ -24,6 +24,32 @@ export function apply_blur(data, width, height, radius) {
 }
 
 /**
+ * Adjusts brightness of RGBA image data in place.
+ * intensity 0.0 = full dark, 0.5 = no change, 1.0 = full bright.
+ * Zero-alloc — operates entirely on the incoming slice.
+ * @param {Uint8Array} data
+ * @param {number} intensity
+ */
+export function apply_brightness(data, intensity) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_brightness(ptr0, len0, data, intensity);
+}
+
+/**
+ * Adjusts contrast of RGBA image data in place.
+ * intensity 0.0 = flat gray, 0.5 = no change, 1.0 = maximum contrast.
+ * Zero-alloc. All arithmetic on f32 — no u8 underflow risk.
+ * @param {Uint8Array} data
+ * @param {number} intensity
+ */
+export function apply_contrast(data, intensity) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_contrast(ptr0, len0, data, intensity);
+}
+
+/**
  * Converts RGBA image data to grayscale in place, blended by intensity.
  * Uses ITU-R BT.601 luminance coefficients for perceptually correct output.
  * intensity 0.0 = original, 1.0 = full grayscale.
@@ -46,6 +72,63 @@ export function apply_invert(data, intensity) {
     var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
     var len0 = WASM_VECTOR_LEN;
     wasm.apply_invert(ptr0, len0, data, intensity);
+}
+
+/**
+ * Adjusts saturation of RGBA image data in place.
+ * level 0.0 = fully desaturated (gray), 0.5 = original, 1.0 = 2× oversaturated.
+ * Zero-alloc. Uses BT.601 luminance for grayscale reference.
+ * @param {Uint8Array} data
+ * @param {number} level
+ */
+export function apply_saturation(data, level) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_saturation(ptr0, len0, data, level);
+}
+
+/**
+ * Applies sepia tone to RGBA image data in place, blended by intensity.
+ * intensity 0.0 = original, 1.0 = full sepia.
+ * Zero-alloc — standard sepia color matrix with lerp.
+ * @param {Uint8Array} data
+ * @param {number} intensity
+ */
+export function apply_sepia(data, intensity) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_sepia(ptr0, len0, data, intensity);
+}
+
+/**
+ * Applies a 3×3 sharpening convolution kernel, blended by intensity.
+ * Kernel: [0,-1,0; -1,5,-1; 0,-1,0].
+ * intensity 0.0 = original, 1.0 = full sharpen.
+ * Allocates a single source-buffer copy upfront. Border pixels are untouched.
+ * @param {Uint8Array} data
+ * @param {number} width
+ * @param {number} height
+ * @param {number} intensity
+ */
+export function apply_sharpen(data, width, height, intensity) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_sharpen(ptr0, len0, data, width, height, intensity);
+}
+
+/**
+ * Applies Sobel edge detection, blended by intensity.
+ * intensity 0.0 = original, 1.0 = full edge map (grayscale magnitude).
+ * Allocates a single source-buffer copy upfront. Border pixels are untouched.
+ * @param {Uint8Array} data
+ * @param {number} width
+ * @param {number} height
+ * @param {number} intensity
+ */
+export function apply_sobel_edge_detection(data, width, height, intensity) {
+    var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    var len0 = WASM_VECTOR_LEN;
+    wasm.apply_sobel_edge_detection(ptr0, len0, data, width, height, intensity);
 }
 
 function __wbg_get_imports() {
