@@ -1,15 +1,16 @@
 import { Download } from 'lucide-react';
-import { useEditorStore } from '../store/use-editor-store';
+import { useEditorStore, selectActiveImage } from '../store/use-editor-store';
 
 export function DownloadButton() {
-  const processedImageUrl = useEditorStore((s) => s.processedImageUrl);
+  const activeImage = useEditorStore(selectActiveImage);
+  const urlToDownload = activeImage?.processedUrl;
 
-  if (!processedImageUrl) return null;
+  if (!urlToDownload) return null;
 
   const handleDownload = () => {
     const anchor = document.createElement('a');
-    anchor.href = processedImageUrl;
-    anchor.download = 'edited-image.png';
+    anchor.href = urlToDownload;
+    anchor.download = activeImage?.file.name ? `edited-${activeImage.file.name}` : 'edited-image.jpg';
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
