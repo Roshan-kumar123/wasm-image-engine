@@ -50,3 +50,13 @@ export interface ProcessErrorMessage {
 }
 
 export type WorkerOutgoingMessage = ProcessCompleteMessage | ProcessErrorMessage;
+
+// ─── Batch image entry ───────────────────────────────────────────────────────
+
+export interface BatchImage {
+  id: string;              // crypto.randomUUID()
+  file: File;              // original File — used for decode + export filename
+  objectUrl: string;       // URL.createObjectURL(file) — created in addImages, revoked on remove/reset
+  processedUrl: string | null; // blob URL from worker; null until processed
+  hasBeenExported: boolean; // true after batch export completes for this image
+}

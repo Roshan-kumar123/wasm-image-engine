@@ -1,32 +1,23 @@
 import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud } from 'lucide-react';
-import { useEditorStore } from '../store/use-editor-store';
-import { fileToImageData } from '../utils/file-to-image-data';
 
 interface DropzoneAreaProps {
-  onImageData: (imageData: ImageData) => void;
+  onFiles: (files: File[]) => void;
 }
 
-export function DropzoneArea({ onImageData }: DropzoneAreaProps) {
-  const setOriginalImage = useEditorStore((s) => s.setOriginalImage);
-
+export function DropzoneArea({ onFiles }: DropzoneAreaProps) {
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
-      setOriginalImage(file);
-      const imageData = await fileToImageData(file);
-      onImageData(imageData);
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) onFiles(acceptedFiles);
     },
-    [setOriginalImage, onImageData],
+    [onFiles],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] },
-    maxFiles: 1,
-    multiple: false,
+    multiple: true,
   });
 
   return (
@@ -50,10 +41,10 @@ export function DropzoneArea({ onImageData }: DropzoneAreaProps) {
       />
       <div className="text-center">
         <p className="text-sm font-medium text-text-secondary">
-          {isDragActive ? 'Drop it here' : 'Drag & drop an image'}
+          {isDragActive ? 'Drop images here' : 'Drag & drop images'}
         </p>
         <p className="text-xs text-text-faint mt-0.5">
-          or click to browse — PNG, JPG, WebP
+          or click to browse — PNG, JPG, WebP · multiple files supported
         </p>
       </div>
     </div>

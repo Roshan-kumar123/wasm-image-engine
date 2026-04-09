@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ImageIcon, PanelLeft } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
 } from 'react-compare-slider';
-import { useEditorStore } from '../store/use-editor-store';
+import { useEditorStore, selectActiveImage } from '../store/use-editor-store';
+import { DropzoneArea } from './DropzoneArea';
 import type { ViewMode } from './TopActionBar';
 
 // ── Custom slider handle ──────────────────────────────────────────────────────
@@ -47,30 +47,23 @@ function SliderLabel({ text, side }: { text: string; side: 'left' | 'right' }) {
 interface CanvasProps {
   viewMode: ViewMode;
   isComparing: boolean;
+  onFiles: (files: File[]) => void;
 }
 
-export function Canvas({ viewMode, isComparing }: CanvasProps) {
-  const originalImage = useEditorStore((s) => s.originalImage);
-  const processedImageUrl = useEditorStore((s) => s.processedImageUrl);
+export function Canvas({ viewMode, isComparing, onFiles }: CanvasProps) {
+  const activeImage = useEditorStore(selectActiveImage);
   const processingTimeMs = useEditorStore((s) => s.processingTimeMs);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!originalImage) {
-      setOriginalUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(originalImage);
-    setOriginalUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [originalImage]);
+  const originalUrl = activeImage?.objectUrl ?? null;
+  const processedImageUrl = activeImage?.processedUrl ?? null;
 
-  // ── Empty state ─────────────────────────────────────────────────────────────
+  // ── Empty state — in-canvas dropzone ────────────────────────────────────────
   if (!originalUrl) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-faint">
-        <ImageIcon className="w-12 h-12" />
-        <p className="text-sm">No image loaded</p>
+      <div className="absolute inset-0 flex items-center justify-center p-8">
+        <div className="w-full max-w-2xl">
+          <DropzoneArea onFiles={onFiles} />
+        </div>
       </div>
     );
   }

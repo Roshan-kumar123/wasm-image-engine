@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Zap, ShieldCheck, Gauge, Workflow, ImageDown } from 'lucide-react';
 import { DropzoneArea } from './DropzoneArea';
-import { useEditorStore } from '../store/use-editor-store';
-import { fileToImageData } from '../utils/file-to-image-data';
 
 const SAMPLE_IMAGES = [
   {
@@ -47,17 +45,23 @@ const FEATURES = [
 ];
 
 interface LandingPageProps {
-  onImageData: (imageData: ImageData) => void;
+  onFiles: (files: File[]) => void;
 }
 
-export function LandingPage({ onImageData }: LandingPageProps) {
-  const setOriginalImage = useEditorStore((s) => s.setOriginalImage);
+export function LandingPage({ onFiles }: LandingPageProps) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const handleFiles = useCallback((files: File[]) => {
+    setFetchError(null);
+    onFiles(files);
+  }, [onFiles]);
 
   const handleSampleClick = useCallback(
     async (sample: (typeof SAMPLE_IMAGES)[number]) => {
       if (loadingId) return;
       setLoadingId(sample.id);
+      setFetchError(null);
       try {
         const response = await fetch(sample.url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -65,16 +69,14 @@ export function LandingPage({ onImageData }: LandingPageProps) {
         const file = new File([blob], `${sample.label.toLowerCase()}.jpg`, {
           type: blob.type || 'image/jpeg',
         });
-        setOriginalImage(file);
-        const imageData = await fileToImageData(file);
-        onImageData(imageData);
-      } catch (err) {
-        console.error('Failed to load sample image:', err);
+        onFiles([file]);
+      } catch {
+        setFetchError('Failed to load sample image. Please try uploading your own.');
       } finally {
         setLoadingId(null);
       }
     },
-    [loadingId, setOriginalImage, onImageData],
+    [loadingId, onFiles],
   );
 
   return (
@@ -102,13 +104,17 @@ export function LandingPage({ onImageData }: LandingPageProps) {
 
       {/* ── Dropzone ─────────────────────────────────────────────────────── */}
       <div className="w-full flex flex-col gap-3">
-        <DropzoneArea onImageData={onImageData} />
+        <DropzoneArea onFiles={handleFiles} />
 
         <div className="flex items-center gap-3 text-text-faint text-xs">
           <div className="flex-1 h-px bg-border-subtle" />
           or try a sample
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
+
+        {fetchError && (
+          <p className="text-red-400 text-xs text-center mt-2">{fetchError}</p>
+        )}
 
         <div className="grid grid-cols-3 gap-3">
           {SAMPLE_IMAGES.map((sample) => {

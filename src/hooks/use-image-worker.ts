@@ -7,12 +7,13 @@ import type {
 
 export function useImageWorker() {
   const workerRef = useRef<Worker | null>(null);
-  const prevUrlRef = useRef<string | null>(null);
+  // Map<imageId, blobUrl> — tracks all live processed URLs so we can revoke by id
+  const processedUrlMapRef = useRef<Map<string, string>>(new Map());
+  // The onComplete callback supplied by the caller for the current in-flight request
+  const onCompleteRef = useRef<((url: string, ms: number) => void) | null>(null);
 
-  const setProcessedImageUrl = useEditorStore((s) => s.setProcessedImageUrl);
   const setIsProcessing = useEditorStore((s) => s.setIsProcessing);
   const setWorkerError = useEditorStore((s) => s.setWorkerError);
-  const setProcessingTimeMs = useEditorStore((s) => s.setProcessingTimeMs);
 
   useEffect(() => {
     const worker = new Worker(
@@ -35,14 +36,12 @@ export function useImageWorker() {
         const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.85 });
         const url = URL.createObjectURL(blob);
 
-        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-        prevUrlRef.current = url;
-
-        setProcessedImageUrl(url);
-        setProcessingTimeMs(payload.processingTimeMs);
         setWorkerError(null);
+        onCompleteRef.current?.(url, payload.processingTimeMs);
+        onCompleteRef.current = null;
       } else {
         setWorkerError(payload.error);
+        onCompleteRef.current = null;
       }
 
       setIsProcessing(false);
@@ -51,27 +50,50 @@ export function useImageWorker() {
     worker.onerror = (err) => {
       setWorkerError(err.message ?? "Worker failed to load");
       setIsProcessing(false);
+      onCompleteRef.current = null;
     };
 
     workerRef.current = worker;
 
     return () => {
       worker.terminate();
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
-        prevUrlRef.current = null;
+      // Revoke all tracked processed URLs on unmount
+      for (const url of processedUrlMapRef.current.values()) {
+        URL.revokeObjectURL(url);
       }
+      processedUrlMapRef.current.clear();
     };
-  }, [setProcessedImageUrl, setIsProcessing, setWorkerError, setProcessingTimeMs]);
+  }, [setIsProcessing, setWorkerError]);
 
-  // Process the full filter stack against the original ImageData.
-  // A clone of the ImageData is transferred to the worker on every call so the
-  // caller's cached original is never mutated or detached.
+  /**
+   * Process the full filter stack against the original ImageData.
+   * A clone of the ImageData is transferred to the worker (zero-copy) so the
+   * caller's cached original is never mutated or detached.
+   *
+   * @param imageData - The source ImageData to process
+   * @param filterStack - Ordered list of filters to apply
+   * @param imageId - The BatchImage id this result belongs to
+   * @param onComplete - Called with (blobUrl, processingTimeMs) when the worker finishes
+   */
   const processStack = useCallback(
-    (imageData: ImageData, filterStack: FilterLayer[]) => {
+    (
+      imageData: ImageData,
+      filterStack: FilterLayer[],
+      imageId: string,
+      onComplete: (url: string, ms: number) => void,
+    ) => {
       if (!workerRef.current) return;
       setWorkerError(null);
       setIsProcessing(true);
+
+      // Wrap onComplete to handle per-image URL lifecycle:
+      // revoke the old processed URL for this specific image before delivering the new one
+      onCompleteRef.current = (url: string, ms: number) => {
+        const oldUrl = processedUrlMapRef.current.get(imageId);
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+        processedUrlMapRef.current.set(imageId, url);
+        onComplete(url, ms);
+      };
 
       const cloned = new ImageData(
         new Uint8ClampedArray(imageData.data),
@@ -87,12 +109,22 @@ export function useImageWorker() {
     [setIsProcessing, setWorkerError],
   );
 
-  const revokeProcessedUrl = useCallback(() => {
-    if (prevUrlRef.current) {
-      URL.revokeObjectURL(prevUrlRef.current);
-      prevUrlRef.current = null;
+  /** Revoke the processed blob URL for a specific image (call before removeImage). */
+  const revokeProcessedUrl = useCallback((imageId: string) => {
+    const url = processedUrlMapRef.current.get(imageId);
+    if (url) {
+      URL.revokeObjectURL(url);
+      processedUrlMapRef.current.delete(imageId);
     }
   }, []);
 
-  return { processStack, revokeProcessedUrl };
+  /** Revoke all tracked processed URLs (call before reset). */
+  const revokeAllProcessedUrls = useCallback(() => {
+    for (const url of processedUrlMapRef.current.values()) {
+      URL.revokeObjectURL(url);
+    }
+    processedUrlMapRef.current.clear();
+  }, []);
+
+  return { processStack, revokeProcessedUrl, revokeAllProcessedUrls };
 }

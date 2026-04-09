@@ -18,7 +18,11 @@ import type {
   WorkerOutgoingMessage,
 } from "../types/image-worker.types";
 
-await __wbg_init();
+// Store the init promise but do NOT await it at the top level.
+// Binding self.onmessage must happen synchronously so the worker never misses
+// a message posted before the Wasm module finishes loading (e.g. from a worker
+// that is created and immediately sent a message, as in use-batch-export.ts).
+const wasmReadyPromise = __wbg_init();
 
 // ── Apply a single filter layer to a Uint8Array buffer in-place ──────────────
 function applyFilter(
@@ -71,11 +75,12 @@ function applyFilter(
   }
 }
 
-self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
+self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
   const { type, payload } = event.data;
   if (type !== "PROCESS_IMAGE") return;
 
   try {
+    await wasmReadyPromise;
     const { imageData, filterStack } = payload;
     const { width, height } = imageData;
 

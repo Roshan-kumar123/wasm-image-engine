@@ -24,7 +24,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: unknown, info: { componentStack?: string | null }) {
-    console.error('[ErrorBoundary] Wasm/Worker error caught:', error, info.componentStack);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[ErrorBoundary] Wasm/Worker error caught:', error, info.componentStack);
+    }
   }
 
   handleRetry = () => {

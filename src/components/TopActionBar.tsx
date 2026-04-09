@@ -1,54 +1,67 @@
 import { useRef } from 'react';
 import {
-  Upload,
+  Plus,
   RotateCcw,
   Columns2,
   Square,
   Download,
+  Archive,
+  Trash2,
 } from 'lucide-react';
 
 export type ViewMode = 'split' | 'single';
 
 interface TopActionBarProps {
   isProcessing: boolean;
+  isBatchExporting: boolean;
   hasProcessed: boolean;
+  imageCount: number;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onUploadNew: (file: File) => void;
+  onAddImages: (files: File[]) => void;
   onReset: () => void;
+  onClearAll: () => void;
   onCompareStart: () => void;
   onCompareEnd: () => void;
   onExport: () => void;
+  onBatchExport: () => void;
 }
 
 export function TopActionBar({
   isProcessing,
+  isBatchExporting,
   hasProcessed,
+  imageCount,
   viewMode,
   onViewModeChange,
-  onUploadNew,
+  onAddImages,
   onReset,
+  onClearAll,
   onCompareStart,
   onCompareEnd,
   onExport,
+  onBatchExport,
 }: TopActionBarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const busy = isProcessing || isBatchExporting;
+  const hasImage = imageCount > 0;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onUploadNew(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      onAddImages(files);
       e.target.value = '';
     }
   };
 
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-xl bg-surface border border-border-subtle shrink-0 shadow-sm">
-      {/* Hidden file input */}
+      {/* Hidden multi-file input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={handleFileChange}
       />
@@ -56,11 +69,12 @@ export function TopActionBar({
       {/* ── Left zone ──────────────────────────────────────────────────── */}
       <button
         onClick={() => fileInputRef.current?.click()}
-        disabled={isProcessing}
+        disabled={busy}
+        title="Add more images to the batch"
         className="bar-btn bar-btn-subtle"
       >
-        <Upload className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Upload New</span>
+        <Plus className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Add Images</span>
       </button>
 
       {/* ── Centre zone — view toggle ──────────────────────────────────── */}
@@ -68,7 +82,7 @@ export function TopActionBar({
         <ToggleSegment
           active={viewMode === 'split'}
           onClick={() => onViewModeChange('split')}
-          disabled={isProcessing || !hasProcessed}
+          disabled={busy || !hasProcessed}
           icon={<Columns2 className="w-3.5 h-3.5" />}
           label="Split"
           title="Side-by-side compare slider"
@@ -76,7 +90,7 @@ export function TopActionBar({
         <ToggleSegment
           active={viewMode === 'single'}
           onClick={() => onViewModeChange('single')}
-          disabled={isProcessing || !hasProcessed}
+          disabled={busy || !hasProcessed}
           icon={<Square className="w-3.5 h-3.5" />}
           label="Single"
           title="Single view — hold Compare to peek original"
@@ -92,7 +106,7 @@ export function TopActionBar({
       <div className="flex items-center gap-2">
         <button
           onClick={onReset}
-          disabled={isProcessing || !hasProcessed}
+          disabled={busy || !hasProcessed}
           title="Revert to original"
           className="bar-btn bar-btn-outline"
         >
@@ -100,14 +114,40 @@ export function TopActionBar({
           <span className="hidden sm:inline">Reset</span>
         </button>
 
+        {/* Destructive clear — removes all images, keeps editor open */}
+        <button
+          onClick={onClearAll}
+          disabled={busy || !hasImage}
+          title="Remove all images"
+          className="bar-btn bar-btn-subtle hover:text-red-400 hover:bg-red-500/10"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Clear All</span>
+        </button>
+
+        {/* Single-image export */}
         <button
           onClick={onExport}
-          disabled={isProcessing || !hasProcessed}
+          disabled={busy || !hasProcessed}
+          title="Export active image"
           className="bar-btn bar-btn-primary"
         >
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Export HD</span>
         </button>
+
+        {/* Batch export — only shown when more than one image is loaded */}
+        {imageCount > 1 && (
+          <button
+            onClick={onBatchExport}
+            disabled={busy}
+            title={`Export all ${imageCount} images as ZIP`}
+            className="bar-btn bar-btn-outline"
+          >
+            <Archive className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Export All</span>
+          </button>
+        )}
       </div>
     </div>
   );
