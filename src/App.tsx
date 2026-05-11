@@ -10,6 +10,8 @@ import { Sidebar } from "./components/Sidebar";
 import { Canvas } from "./components/Canvas";
 import { TopActionBar } from "./components/TopActionBar";
 import type { ViewMode } from "./components/TopActionBar";
+import type { ExportConfig } from "./components/ExportSettingsModal";
+import { formatToExtension } from "./utils/resize-and-encode";
 import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Filmstrip } from "./components/Filmstrip";
@@ -17,13 +19,14 @@ import { BatchProgressOverlay } from "./components/BatchProgressOverlay";
 
 export default function App() {
   const { processStack, revokeProcessedUrl, revokeAllProcessedUrls } = useImageWorker();
-  const { runBatchExport } = useBatchExport();
+  const { runBatchExport, processImageAsync } = useBatchExport();
 
   // Active image's decoded ImageData — one image at a time (no map, prevents OOM)
   const activeImageDataRef = useRef<ImageData | null>(null);
   // Track which image id is currently decoded to avoid re-decoding on slider drag
   const currentDecodedIdRef = useRef<string | null>(null);
 
+  const [isExportingSingle, setIsExportingSingle] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [isComparing, setIsComparing] = useState(false);
   // Once true, the editor UI is always shown — cleared only by handleExitEditor
@@ -124,15 +127,30 @@ export default function App() {
   }, [handleClearWorkspace]);
 
   // ── Export active image ────────────────────────────────────────────────────
-  const handleExport = useCallback(() => {
-    if (!activeImage?.processedUrl) return;
-    const a = document.createElement("a");
-    a.href = activeImage.processedUrl;
-    a.download = `edited-${activeImage.file.name}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }, [activeImage]);
+  const handleExport = useCallback(async (config: ExportConfig) => {
+    if (!activeImage || !activeImageDataRef.current) return;
+    setIsExportingSingle(true);
+    try {
+      const currentStack = useEditorStore.getState().filterStack;
+      const blob = await processImageAsync(activeImageDataRef.current, currentStack, config);
+      const baseName = activeImage.file.name.replace(/\.[^.]+$/, "");
+      const filename = `edited-${baseName}${formatToExtension(config.format)}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      useEditorStore.getState().setWorkerError(
+        err instanceof Error ? err.message : "Export failed",
+      );
+    } finally {
+      setIsExportingSingle(false);
+    }
+  }, [activeImage, processImageAsync]);
 
   // ── History API ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -179,6 +197,7 @@ export default function App() {
               <TopActionBar
                 isProcessing={isProcessing}
                 isBatchExporting={isBatchExporting}
+                isExportingSingle={isExportingSingle}
                 hasProcessed={!!activeImage?.processedUrl}
                 imageCount={images.length}
                 viewMode={viewMode}

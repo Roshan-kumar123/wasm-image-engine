@@ -2,7 +2,9 @@ import { useRef, useCallback, useEffect } from "react";
 import JSZip from "jszip";
 import { useEditorStore } from "../store/use-editor-store";
 import { fileToImageData } from "../utils/file-to-image-data";
+import { resizeAndEncode, formatToExtension } from "../utils/resize-and-encode";
 import type { FilterLayer, WorkerOutgoingMessage } from "../types/image-worker.types";
+import type { ExportConfig } from "../components/ExportSettingsModal";
 
 /**
  * Batch export hook — owns a dedicated Worker separate from the live-preview worker.
@@ -40,6 +42,7 @@ export function useBatchExport() {
   const processImageAsync = (
     imageData: ImageData,
     stack: FilterLayer[],
+    config: ExportConfig,
   ): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const worker = getWorker();
@@ -50,12 +53,12 @@ export function useBatchExport() {
 
         const { type, payload } = event.data;
         if (type === "PROCESS_COMPLETE") {
-          const canvas = new OffscreenCanvas(payload.imageData.width, payload.imageData.height);
-          const ctx = canvas.getContext("2d");
-          if (!ctx) { reject(new Error("OffscreenCanvas context unavailable")); return; }
-          ctx.putImageData(payload.imageData, 0, 0);
-          const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
-          resolve(blob);
+          try {
+            const blob = await resizeAndEncode(payload.imageData, config);
+            resolve(blob);
+          } catch (err) {
+            reject(err);
+          }
         } else {
           reject(new Error(payload.error));
         }
@@ -82,7 +85,7 @@ export function useBatchExport() {
     });
   };
 
-  const runBatchExport = useCallback(async () => {
+  const runBatchExport = useCallback(async (config: ExportConfig) => {
     // Read latest state at call time (not stale hook closure values)
     const state = useEditorStore.getState();
     const { images: currentImages, filterStack: currentStack, isBatchExporting } = state;
@@ -101,10 +104,11 @@ export function useBatchExport() {
 
         // Fresh decode per image — no shared ImageData cache (prevents OOM on large batches)
         const imageData = await fileToImageData(image.file);
-        const blob = await processImageAsync(imageData, currentStack);
+        const blob = await processImageAsync(imageData, currentStack, config);
 
-        // Index-prefixed filename to prevent collisions when files share the same name
-        const filename = `${String(i + 1).padStart(3, "0")}_${image.file.name}`;
+        // Strip original extension and use the export format's extension
+        const baseName = image.file.name.replace(/\.[^.]+$/, "");
+        const filename = `${String(i + 1).padStart(3, "0")}_${baseName}${formatToExtension(config.format)}`;
         zip.file(filename, blob);
 
         useEditorStore.getState().setActiveImageExported(image.id);
@@ -136,5 +140,5 @@ export function useBatchExport() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { runBatchExport };
+  return { runBatchExport, processImageAsync };
 }
