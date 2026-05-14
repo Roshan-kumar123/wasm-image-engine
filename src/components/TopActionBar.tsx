@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { ExportSettingsModal, type ExportConfig } from './ExportSettingsModal';
+import { UpgradeModal } from './UpgradeModal';
 import {
   Plus,
   RotateCcw,
@@ -8,6 +9,7 @@ import {
   Download,
   Archive,
   Trash2,
+  Lock,
 } from 'lucide-react';
 
 export type ViewMode = 'split' | 'single';
@@ -49,6 +51,16 @@ export function TopActionBar({
   const busy = isProcessing || isBatchExporting || isExportingSingle;
   const hasImage = imageCount > 0;
   const [exportTarget, setExportTarget] = useState<'single' | 'batch' | null>(null);
+  const [isPro, setIsPro] = useState(
+    () => localStorage.getItem('_bl_sys_conf') === 'x9f_88a_v2'
+  );
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const handleProUnlock = () => {
+    localStorage.setItem('_bl_sys_conf', 'x9f_88a_v2');
+    setIsPro(true);
+    setShowUpgradeModal(false);
+  };
 
   const handleExportConfirm = (config: ExportConfig) => {
     const target = exportTarget;
@@ -162,13 +174,13 @@ export function TopActionBar({
               </span>
             </button>
             <button
-              onClick={() => setExportTarget('batch')}
+              onClick={() => isPro ? setExportTarget('batch') : setShowUpgradeModal(true)}
               disabled={busy}
-              title={`Export all ${imageCount} images as ZIP`}
+              title={isPro ? `Export all ${imageCount} images as ZIP` : 'Upgrade to Pro to export batches'}
               className="bar-btn bar-btn-primary"
             >
-              <Archive className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export All</span>
+              {isPro ? <Archive className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isPro ? 'Export All' : 'Export All · Pro'}</span>
             </button>
           </>
         ) : (
@@ -199,6 +211,13 @@ export function TopActionBar({
         isBatch={exportTarget === 'batch'}
         onConfirm={handleExportConfirm}
         onCancel={() => setExportTarget(null)}
+      />
+    )}
+
+    {showUpgradeModal && (
+      <UpgradeModal
+        onSuccess={handleProUnlock}
+        onClose={() => setShowUpgradeModal(false)}
       />
     )}
     </>
