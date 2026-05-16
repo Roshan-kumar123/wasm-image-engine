@@ -16,9 +16,11 @@ import { LoadingSpinner } from "./components/LoadingSpinner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Filmstrip } from "./components/Filmstrip";
 import { BatchProgressOverlay } from "./components/BatchProgressOverlay";
+import { BetaBanner } from "./components/BetaBanner";
 
 export default function App() {
-  const { processStack, revokeProcessedUrl, revokeAllProcessedUrls } = useImageWorker();
+  const { processStack, revokeProcessedUrl, revokeAllProcessedUrls } =
+    useImageWorker();
   const { runBatchExport, processImageAsync } = useBatchExport();
 
   // Active image's decoded ImageData — one image at a time (no map, prevents OOM)
@@ -43,7 +45,9 @@ export default function App() {
   const addImages = useEditorStore((s) => s.addImages);
   const removeImage = useEditorStore((s) => s.removeImage);
   const setActiveImage = useEditorStore((s) => s.setActiveImage);
-  const setActiveImageProcessedUrl = useEditorStore((s) => s.setActiveImageProcessedUrl);
+  const setActiveImageProcessedUrl = useEditorStore(
+    (s) => s.setActiveImageProcessedUrl,
+  );
   const setProcessingTimeMs = useEditorStore((s) => s.setProcessingTimeMs);
   const clearStack = useEditorStore((s) => s.clearStack);
   const reset = useEditorStore((s) => s.reset);
@@ -82,25 +86,31 @@ export default function App() {
     };
 
     run();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStack, activeImageId]);
 
   // ── Add images ─────────────────────────────────────────────────────────────
-  const handleAddImages = useCallback((files: File[]) => {
-    if (files.length === 0) return;
-    addImages(files);
-    setHasEnteredEditor(true);
-  }, [addImages]);
+  const handleAddImages = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return;
+      addImages(files);
+      setHasEnteredEditor(true);
+    },
+    [addImages],
+  );
 
   // ── Remove image from filmstrip ────────────────────────────────────────────
-  const handleRemoveImage = useCallback((id: string) => {
-    revokeProcessedUrl(id);
-    removeImage(id);
-    if (id === currentDecodedIdRef.current) {
-      activeImageDataRef.current = null;
-      currentDecodedIdRef.current = null;
-    }
-  }, [revokeProcessedUrl, removeImage]);
+  const handleRemoveImage = useCallback(
+    (id: string) => {
+      revokeProcessedUrl(id);
+      removeImage(id);
+      if (id === currentDecodedIdRef.current) {
+        activeImageDataRef.current = null;
+        currentDecodedIdRef.current = null;
+      }
+    },
+    [revokeProcessedUrl, removeImage],
+  );
 
   // ── Reset filter stack, keep images ───────────────────────────────────────
   const handleReset = useCallback(() => {
@@ -109,7 +119,12 @@ export default function App() {
       setActiveImageProcessedUrl(activeImageId, null);
     }
     clearStack();
-  }, [activeImageId, revokeProcessedUrl, setActiveImageProcessedUrl, clearStack]);
+  }, [
+    activeImageId,
+    revokeProcessedUrl,
+    setActiveImageProcessedUrl,
+    clearStack,
+  ]);
 
   // ── Clear workspace — dumps all images but KEEPS editor open ──────────────
   const handleClearWorkspace = useCallback(() => {
@@ -127,30 +142,48 @@ export default function App() {
   }, [handleClearWorkspace]);
 
   // ── Export active image ────────────────────────────────────────────────────
-  const handleExport = useCallback(async (config: ExportConfig) => {
-    if (!activeImage || !activeImageDataRef.current) return;
-    setIsExportingSingle(true);
-    try {
-      const currentStack = useEditorStore.getState().filterStack;
-      const blob = await processImageAsync(activeImageDataRef.current, currentStack, config);
-      const baseName = activeImage.file.name.replace(/\.[^.]+$/, "");
-      const filename = `edited-${baseName}${formatToExtension(config.format)}`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      useEditorStore.getState().setWorkerError(
-        err instanceof Error ? err.message : "Export failed",
-      );
-    } finally {
-      setIsExportingSingle(false);
-    }
-  }, [activeImage, processImageAsync]);
+  const handleExport = useCallback(
+    async (config: ExportConfig) => {
+      if (!activeImage || !activeImageDataRef.current) return;
+      setIsExportingSingle(true);
+      try {
+        const currentStack = useEditorStore.getState().filterStack;
+        const blob = await processImageAsync(
+          activeImageDataRef.current,
+          currentStack,
+          config,
+        );
+        const baseName = activeImage.file.name.replace(/\.[^.]+$/, "");
+        const filename = `edited-${baseName}${formatToExtension(config.format)}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        useEditorStore
+          .getState()
+          .setWorkerError(err instanceof Error ? err.message : "Export failed");
+      } finally {
+        setIsExportingSingle(false);
+      }
+    },
+    [activeImage, processImageAsync],
+  );
+
+  // ── Unsaved-work guard ────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (images.length === 0) return;
+      e.preventDefault();
+      e.returnValue = ""; // This line for Safari/Chrome compatibility
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [images.length]);
 
   // ── History API ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -161,7 +194,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (hasEnteredEditor) window.history.pushState({ view: "editor" }, "", "#editor");
+    if (hasEnteredEditor)
+      window.history.pushState({ view: "editor" }, "", "#editor");
   }, [hasEnteredEditor]);
 
   useEffect(() => {
@@ -173,12 +207,12 @@ export default function App() {
   }, [hasEnteredEditor, handleExitEditor]);
 
   return (
-    <>
+    <div className="flex flex-col h-dvh">
+      <BetaBanner />
+      <div className="flex flex-col flex-1 min-h-0">
       <EditorLayout
         hasImage={hasEnteredEditor}
-        sidebar={
-          <Sidebar hasImage={hasImage} />
-        }
+        sidebar={<Sidebar hasImage={hasImage} />}
         main={
           hasEnteredEditor ? (
             <div className="flex flex-col flex-1 gap-3 p-4 sm:p-5 overflow-hidden min-h-0">
@@ -241,6 +275,8 @@ export default function App() {
         }
       />
 
+      </div>
+
       {/* Batch progress overlay — covers entire viewport */}
       {isBatchExporting && batchProgress && (
         <BatchProgressOverlay
@@ -248,6 +284,6 @@ export default function App() {
           total={batchProgress.total}
         />
       )}
-    </>
+    </div>
   );
 }

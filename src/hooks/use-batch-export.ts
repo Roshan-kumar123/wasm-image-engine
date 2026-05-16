@@ -3,13 +3,16 @@ import JSZip from "jszip";
 import { useEditorStore } from "../store/use-editor-store";
 import { fileToImageData } from "../utils/file-to-image-data";
 import { resizeAndEncode, formatToExtension } from "../utils/resize-and-encode";
-import type { FilterLayer, WorkerOutgoingMessage } from "../types/image-worker.types";
+import type {
+  FilterLayer,
+  WorkerOutgoingMessage,
+} from "../types/image-worker.types";
 import type { ExportConfig } from "../components/ExportSettingsModal";
 
 /**
  * Batch export hook — owns a dedicated Worker separate from the live-preview worker.
  * Processes all images sequentially (one at a time) to prevent OOM on large batches.
- * Packages all results into a single "pixelflow-batch.zip" download via jszip.
+ * Packages all results into a single "BatchLens-batch.zip" download via jszip.
  */
 export function useBatchExport() {
   const workerRef = useRef<Worker | null>(null);
@@ -47,7 +50,9 @@ export function useBatchExport() {
     return new Promise((resolve, reject) => {
       const worker = getWorker();
 
-      const handleMessage = async (event: MessageEvent<WorkerOutgoingMessage>) => {
+      const handleMessage = async (
+        event: MessageEvent<WorkerOutgoingMessage>,
+      ) => {
         worker.removeEventListener("message", handleMessage);
         worker.removeEventListener("error", handleError);
 
@@ -79,7 +84,10 @@ export function useBatchExport() {
         imageData.height,
       );
       worker.postMessage(
-        { type: "PROCESS_IMAGE", payload: { imageData: cloned, filterStack: stack } },
+        {
+          type: "PROCESS_IMAGE",
+          payload: { imageData: cloned, filterStack: stack },
+        },
         [cloned.data.buffer],
       );
     });
@@ -88,7 +96,11 @@ export function useBatchExport() {
   const runBatchExport = useCallback(async (config: ExportConfig) => {
     // Read latest state at call time (not stale hook closure values)
     const state = useEditorStore.getState();
-    const { images: currentImages, filterStack: currentStack, isBatchExporting } = state;
+    const {
+      images: currentImages,
+      filterStack: currentStack,
+      isBatchExporting,
+    } = state;
 
     if (isBatchExporting || currentImages.length === 0) return;
 
@@ -100,7 +112,9 @@ export function useBatchExport() {
     try {
       for (let i = 0; i < currentImages.length; i++) {
         const image = currentImages[i];
-        useEditorStore.getState().setBatchProgress({ current: i + 1, total: currentImages.length });
+        useEditorStore
+          .getState()
+          .setBatchProgress({ current: i + 1, total: currentImages.length });
 
         // Fresh decode per image — no shared ImageData cache (prevents OOM on large batches)
         const imageData = await fileToImageData(image.file);
@@ -124,20 +138,22 @@ export function useBatchExport() {
       const zipUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = zipUrl;
-      a.download = "pixelflow-batch.zip";
+      a.download = "BatchLens-batch.zip";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(zipUrl);
     } catch (err) {
-      useEditorStore.getState().setWorkerError(
-        err instanceof Error ? err.message : "Batch export failed",
-      );
+      useEditorStore
+        .getState()
+        .setWorkerError(
+          err instanceof Error ? err.message : "Batch export failed",
+        );
     } finally {
       useEditorStore.getState().setBatchExporting(false);
       useEditorStore.getState().setBatchProgress(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { runBatchExport, processImageAsync };

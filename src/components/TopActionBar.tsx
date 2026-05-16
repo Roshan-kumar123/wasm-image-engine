@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { ExportSettingsModal, type ExportConfig } from './ExportSettingsModal';
 import { UpgradeModal } from './UpgradeModal';
+import { useEditorStore } from '../store/use-editor-store';
+import { IS_PUBLIC_BETA } from '../config/beta';
 import {
   Plus,
   RotateCcw,
@@ -10,6 +12,7 @@ import {
   Archive,
   Trash2,
   Lock,
+  ShieldOff,
 } from 'lucide-react';
 
 export type ViewMode = 'split' | 'single';
@@ -51,15 +54,25 @@ export function TopActionBar({
   const busy = isProcessing || isBatchExporting || isExportingSingle;
   const hasImage = imageCount > 0;
   const [exportTarget, setExportTarget] = useState<'single' | 'batch' | null>(null);
-  const [isPro, setIsPro] = useState(
-    () => localStorage.getItem('_bl_sys_conf') === 'x9f_88a_v2'
-  );
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
-  const handleProUnlock = () => {
-    localStorage.setItem('_bl_sys_conf', 'x9f_88a_v2');
-    setIsPro(true);
+  const isPro        = useEditorStore((s) => s.isPro);
+  const unlockPro    = useEditorStore((s) => s.unlockPro);
+  const deactivatePro = useEditorStore((s) => s.deactivatePro);
+
+  const handleProUnlock = (licenseKey: string, instanceId: string) => {
+    unlockPro(licenseKey, instanceId);
     setShowUpgradeModal(false);
+  };
+
+  const handleDeactivate = async () => {
+    setDeactivating(true);
+    try {
+      await deactivatePro();
+    } finally {
+      setDeactivating(false);
+    }
   };
 
   const handleExportConfirm = (config: ExportConfig) => {
@@ -174,13 +187,13 @@ export function TopActionBar({
               </span>
             </button>
             <button
-              onClick={() => isPro ? setExportTarget('batch') : setShowUpgradeModal(true)}
+              onClick={() => (!IS_PUBLIC_BETA && !isPro) ? setShowUpgradeModal(true) : setExportTarget('batch')}
               disabled={busy}
-              title={isPro ? `Export all ${imageCount} images as ZIP` : 'Upgrade to Pro to export batches'}
+              title={(!IS_PUBLIC_BETA && !isPro) ? 'Upgrade to Pro to export batches' : `Export all ${imageCount} images as ZIP`}
               className="bar-btn bar-btn-primary"
             >
-              {isPro ? <Archive className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{isPro ? 'Export All' : 'Export All · Pro'}</span>
+              {(!IS_PUBLIC_BETA && !isPro) ? <Lock className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{(!IS_PUBLIC_BETA && !isPro) ? 'Export All · Pro' : 'Export All'}</span>
             </button>
           </>
         ) : (
@@ -203,6 +216,28 @@ export function TopActionBar({
             </span>
           </button>
         )}
+
+        {/* Deactivate — only shown when Pro is active AND not in beta */}
+        {isPro && !IS_PUBLIC_BETA && (
+          <button
+            onClick={handleDeactivate}
+            disabled={busy || deactivating}
+            title="Deactivate license on this device"
+            className="bar-btn bar-btn-subtle hover:text-red-400 hover:bg-red-500/10"
+          >
+            {deactivating ? (
+              <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <ShieldOff className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden sm:inline">
+              {deactivating ? 'Deactivating...' : 'Deactivate'}
+            </span>
+          </button>
+        )}
       </div>
     </div>
 
@@ -214,7 +249,7 @@ export function TopActionBar({
       />
     )}
 
-    {showUpgradeModal && (
+    {!IS_PUBLIC_BETA && showUpgradeModal && (
       <UpgradeModal
         onSuccess={handleProUnlock}
         onClose={() => setShowUpgradeModal(false)}

@@ -1,11 +1,20 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo } from "react";
 import {
-  Sun, Contrast, Layers, SunDim, CircleDot, Palette,
-  Droplets, Sparkles, Scan, GripVertical, X,
-} from 'lucide-react';
-import { useEditorStore } from '../store/use-editor-store';
-import type { FilterType, FilterLayer } from '../types/image-worker.types';
-import type { FC } from 'react';
+  Sun,
+  Contrast,
+  Layers,
+  SunDim,
+  CircleDot,
+  Palette,
+  Droplets,
+  Sparkles,
+  Scan,
+  GripVertical,
+  X,
+} from "lucide-react";
+import { useEditorStore } from "../store/use-editor-store";
+import type { FilterType, FilterLayer } from "../types/image-worker.types";
+import type { FC } from "react";
 
 // ── Filter catalogue ─────────────────────────────────────────────────────────
 
@@ -17,33 +26,149 @@ interface FilterMeta {
 }
 
 const FILTER_CATALOGUE: FilterMeta[] = [
-  { type: 'grayscale',  label: 'Grayscale',  description: 'BT.601 luminance',    Icon: Sun },
-  { type: 'invert',     label: 'Invert',     description: 'Negate RGB channels',  Icon: Contrast },
-  { type: 'brightness', label: 'Brightness', description: 'Lighten or darken',    Icon: SunDim },
-  { type: 'contrast',   label: 'Contrast',   description: 'Expand tonal range',   Icon: CircleDot },
-  { type: 'sepia',      label: 'Sepia',      description: 'Warm vintage tone',    Icon: Palette },
-  { type: 'saturation', label: 'Saturation', description: 'Color vibrancy',       Icon: Droplets },
-  { type: 'blur',       label: 'Box Blur',   description: 'Two-pass radius blur', Icon: Layers },
-  { type: 'sharpen',    label: 'Sharpen',    description: '3×3 unsharp kernel',   Icon: Sparkles },
-  { type: 'sobel',      label: 'Edge Det.',  description: 'Sobel gradient map',   Icon: Scan },
+  {
+    type: "grayscale",
+    label: "Grayscale",
+    description: "BT.601 luminance",
+    Icon: Sun,
+  },
+  {
+    type: "invert",
+    label: "Invert",
+    description: "Negate RGB channels",
+    Icon: Contrast,
+  },
+  {
+    type: "brightness",
+    label: "Brightness",
+    description: "Lighten or darken",
+    Icon: SunDim,
+  },
+  {
+    type: "contrast",
+    label: "Contrast",
+    description: "Expand tonal range",
+    Icon: CircleDot,
+  },
+  {
+    type: "sepia",
+    label: "Sepia",
+    description: "Warm vintage tone",
+    Icon: Palette,
+  },
+  {
+    type: "saturation",
+    label: "Saturation",
+    description: "Color vibrancy",
+    Icon: Droplets,
+  },
+  {
+    type: "blur",
+    label: "Box Blur",
+    description: "Two-pass radius blur",
+    Icon: Layers,
+  },
+  {
+    type: "sharpen",
+    label: "Sharpen",
+    description: "3×3 unsharp kernel",
+    Icon: Sparkles,
+  },
+  {
+    type: "sobel",
+    label: "Edge Det.",
+    description: "Sobel gradient map",
+    Icon: Scan,
+  },
 ];
 
 const FILTER_META: Record<FilterType, FilterMeta> = Object.fromEntries(
   FILTER_CATALOGUE.map((f) => [f.type, f]),
 ) as Record<FilterType, FilterMeta>;
 
-const SLIDER_CONFIG: Record<FilterType, {
-  min: number; max: number; label: string; unit: string; lowLabel: string; highLabel: string;
-}> = {
-  grayscale:  { min: 0, max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
-  invert:     { min: 0, max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
-  brightness: { min: 0, max: 100, label: 'Level',     unit: '%',  lowLabel: 'Dark',   highLabel: 'Bright' },
-  contrast:   { min: 0, max: 100, label: 'Level',     unit: '%',  lowLabel: 'Flat',   highLabel: 'Sharp' },
-  sepia:      { min: 0, max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Off',    highLabel: 'Full' },
-  saturation: { min: 0, max: 100, label: 'Level',     unit: '%',  lowLabel: 'Gray',   highLabel: 'Vivid' },
-  blur:       { min: 1, max: 40,  label: 'Radius',    unit: 'px', lowLabel: 'Subtle', highLabel: 'Heavy' },
-  sharpen:    { min: 0, max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Subtle', highLabel: 'Strong' },
-  sobel:      { min: 0, max: 100, label: 'Intensity', unit: '%',  lowLabel: 'Subtle', highLabel: 'Full' },
+const SLIDER_CONFIG: Record<
+  FilterType,
+  {
+    min: number;
+    max: number;
+    label: string;
+    unit: string;
+    lowLabel: string;
+    highLabel: string;
+  }
+> = {
+  grayscale: {
+    min: 0,
+    max: 100,
+    label: "Intensity",
+    unit: "%",
+    lowLabel: "Off",
+    highLabel: "Full",
+  },
+  invert: {
+    min: 0,
+    max: 100,
+    label: "Intensity",
+    unit: "%",
+    lowLabel: "Off",
+    highLabel: "Full",
+  },
+  brightness: {
+    min: 0,
+    max: 100,
+    label: "Level",
+    unit: "%",
+    lowLabel: "Dark",
+    highLabel: "Bright",
+  },
+  contrast: {
+    min: 0,
+    max: 100,
+    label: "Level",
+    unit: "%",
+    lowLabel: "Flat",
+    highLabel: "Sharp",
+  },
+  sepia: {
+    min: 0,
+    max: 100,
+    label: "Intensity",
+    unit: "%",
+    lowLabel: "Off",
+    highLabel: "Full",
+  },
+  saturation: {
+    min: 0,
+    max: 100,
+    label: "Level",
+    unit: "%",
+    lowLabel: "Gray",
+    highLabel: "Vivid",
+  },
+  blur: {
+    min: 1,
+    max: 40,
+    label: "Radius",
+    unit: "px",
+    lowLabel: "Subtle",
+    highLabel: "Heavy",
+  },
+  sharpen: {
+    min: 0,
+    max: 100,
+    label: "Intensity",
+    unit: "%",
+    lowLabel: "Subtle",
+    highLabel: "Strong",
+  },
+  sobel: {
+    min: 0,
+    max: 100,
+    label: "Intensity",
+    unit: "%",
+    lowLabel: "Subtle",
+    highLabel: "Full",
+  },
 };
 
 // ── LayerSlider ───────────────────────────────────────────────────────────────
@@ -60,14 +185,20 @@ interface LayerSliderProps {
   onChange: (value: number) => void;
 }
 
-const LayerSlider = memo(function LayerSlider({ layer, isProcessing, onChange }: LayerSliderProps) {
+const LayerSlider = memo(function LayerSlider({
+  layer,
+  isProcessing,
+  onChange,
+}: LayerSliderProps) {
   const slider = SLIDER_CONFIG[layer.type];
   const [localValue, setLocalValue] = useState(layer.value);
   const isDraggingRef = useRef(false);
   // Ref so the global pointerup closure always reads the latest value
   const localValueRef = useRef(localValue);
 
-  useEffect(() => { localValueRef.current = localValue; }, [localValue]);
+  useEffect(() => {
+    localValueRef.current = localValue;
+  }, [localValue]);
 
   // Sync from store only when not dragging — prevents rubber-banding mid-drag
   useEffect(() => {
@@ -80,10 +211,10 @@ const LayerSlider = memo(function LayerSlider({ layer, isProcessing, onChange }:
     // Global capture: fires even when pointer leaves the element before release
     const handleWindowPointerUp = () => {
       isDraggingRef.current = false;
-      onChange(localValueRef.current);   // commit final value → Zustand → worker
-      window.removeEventListener('pointerup', handleWindowPointerUp);
+      onChange(localValueRef.current); // commit final value → Zustand → worker
+      window.removeEventListener("pointerup", handleWindowPointerUp);
     };
-    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener("pointerup", handleWindowPointerUp);
   };
 
   // onChange updates local state ONLY — never touches Zustand during drag
@@ -100,10 +231,11 @@ const LayerSlider = memo(function LayerSlider({ layer, isProcessing, onChange }:
           {slider.label}
         </span>
         <span className="text-xs font-medium font-mono text-accent tabular-nums">
-          {localValue}{slider.unit}
+          {localValue}
+          {slider.unit}
         </span>
       </div>
-      <div style={{ touchAction: 'none' }}>
+      <div style={{ touchAction: "none" }}>
         <input
           type="range"
           min={slider.min}
@@ -134,6 +266,7 @@ interface SidebarProps {
 export function Sidebar({ hasImage }: SidebarProps) {
   const isProcessing = useEditorStore((s) => s.isProcessing);
   const filterStack = useEditorStore((s) => s.filterStack);
+  const isPro = useEditorStore((s) => s.isPro);
   const addFilterToStack = useEditorStore((s) => s.addFilterToStack);
   const updateFilterValue = useEditorStore((s) => s.updateFilterValue);
   const removeFilterFromStack = useEditorStore((s) => s.removeFilterFromStack);
@@ -144,13 +277,25 @@ export function Sidebar({ hasImage }: SidebarProps) {
 
   return (
     <aside className="w-full h-[50dvh] md:h-full md:w-80 shrink-0 flex flex-col bg-sidebar-bg border-t border-border-muted md:border-t-0 md:border-r overflow-hidden">
-
       {/* ── Brand ──────────────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4 shrink-0">
-        <h1 className="text-text-primary font-bold text-sm tracking-tight">
-          PixelFlow
-        </h1>
-        <p className="text-text-muted text-xs mt-0.5">Zero-latency local adjustments.</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-text-primary font-bold text-sm tracking-tight">
+            BatchLens
+          </h1>
+          {isPro ? (
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-accent/15 border border-accent/30 text-accent">
+              Pro
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-surface-raised border border-border-subtle text-text-faint">
+              Free
+            </span>
+          )}
+        </div>
+        <p className="text-text-muted text-xs mt-0.5">
+          Zero-latency local adjustments.
+        </p>
       </div>
 
       {/* ── Filter Library ─────────────────────────────────────────────────── */}
@@ -166,17 +311,23 @@ export function Sidebar({ hasImage }: SidebarProps) {
                 key={type}
                 disabled={!hasImage || isActive}
                 onClick={() => addFilterToStack(type)}
-                title={isActive ? 'Already in stack' : FILTER_META[type].description}
+                title={
+                  isActive ? "Already in stack" : FILTER_META[type].description
+                }
                 className={[
-                  'flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-lg border transition-all duration-150',
-                  'disabled:opacity-35 disabled:cursor-not-allowed',
+                  "flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-lg border transition-all duration-150",
+                  "disabled:opacity-35 disabled:cursor-not-allowed",
                   isActive
-                    ? 'border-border-subtle bg-surface cursor-not-allowed'
-                    : 'border-border-subtle bg-surface hover:bg-surface-raised hover:border-accent/50 cursor-pointer',
-                ].join(' ')}
+                    ? "border-border-subtle bg-surface cursor-not-allowed"
+                    : "border-border-subtle bg-surface hover:bg-surface-raised hover:border-accent/50 cursor-pointer",
+                ].join(" ")}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-text-faint' : 'text-accent'}`} />
-                <span className={`text-[10px] font-semibold leading-tight text-center ${isActive ? 'text-text-faint' : 'text-text-secondary'}`}>
+                <Icon
+                  className={`w-4 h-4 ${isActive ? "text-text-faint" : "text-accent"}`}
+                />
+                <span
+                  className={`text-[10px] font-semibold leading-tight text-center ${isActive ? "text-text-faint" : "text-text-secondary"}`}
+                >
                   {label}
                 </span>
               </button>
@@ -212,7 +363,9 @@ export function Sidebar({ hasImage }: SidebarProps) {
             <div className="flex flex-col items-center justify-center gap-2 py-8">
               <Layers className="w-8 h-8 text-text-faint opacity-40" />
               <p className="text-sm text-text-muted text-center leading-relaxed">
-                Add a filter from<br />the library above.
+                Add a filter from
+                <br />
+                the library above.
               </p>
             </div>
           )}
@@ -244,7 +397,14 @@ interface LayerCardProps {
   onRemove: () => void;
 }
 
-function LayerCard({ layer, index, disabled, isProcessing, onValueChange, onRemove }: LayerCardProps) {
+function LayerCard({
+  layer,
+  index,
+  disabled,
+  isProcessing,
+  onValueChange,
+  onRemove,
+}: LayerCardProps) {
   const meta = FILTER_META[layer.type];
 
   return (

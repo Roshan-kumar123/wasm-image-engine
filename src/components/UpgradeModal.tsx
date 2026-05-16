@@ -1,34 +1,44 @@
-import { useState, useEffect, useRef } from 'react';
-import { Zap, CheckCircle2, KeyRound } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import { Zap, CheckCircle2, KeyRound } from "lucide-react";
 
 const CHECKOUT_URL =
-  'https://batchlens.lemonsqueezy.com/checkout/buy/d4a94655-acc8-42f0-b7b0-7f18ee107473';
+  "https://batchlens.lemonsqueezy.com/checkout/buy/91fdc776-b324-43d9-9bab-33281e8c57e8";
+
+const LIMIT_REACHED_MSG = "This license key has reached the activation limit.";
 
 const FEATURES = [
-  'Process 100s of images in one click',
-  'WebP, JPEG & PNG export with custom resize',
-  '100% private — no cloud uploads, ever',
-  'Lifetime access — pay once, yours forever',
+  "Process 100s of images in one click",
+  "WebP, JPEG & PNG export with custom resize",
+  "100% private — no cloud uploads, ever",
+  "Lifetime access — pay once, yours forever",
 ];
 
+interface ActivateResponse {
+  activated: boolean;
+  instance?: { id: string };
+  license_key?: { key: string };
+  error?: string;
+}
+
 interface UpgradeModalProps {
-  onSuccess: () => void;
+  onSuccess: (licenseKey: string, instanceId: string) => void;
   onClose: () => void;
 }
 
 export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
-  const [keyInput,  setKeyInput]  = useState('');
+  const [keyInput, setKeyInput] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [keyError,  setKeyError]  = useState<string | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   // Focus trap
@@ -45,11 +55,11 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
     getFocusable()[0]?.focus();
 
     const handleTabTrap = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== "Tab") return;
       const focusable = getFocusable();
       if (focusable.length === 0) return;
       const first = focusable[0];
-      const last  = focusable[focusable.length - 1];
+      const last = focusable[focusable.length - 1];
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
@@ -59,9 +69,9 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
       }
     };
 
-    document.addEventListener('keydown', handleTabTrap);
+    document.addEventListener("keydown", handleTabTrap);
     return () => {
-      document.removeEventListener('keydown', handleTabTrap);
+      document.removeEventListener("keydown", handleTabTrap);
       previouslyFocused?.focus();
     };
   }, []);
@@ -71,24 +81,32 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
     if (!key) return;
     setVerifying(true);
     setKeyError(null);
+    setLimitReached(false);
     try {
       const body = new URLSearchParams({
         license_key: key,
-        instance_name: 'BatchLens Web App',
+        instance_name: "BatchLens Web App",
       });
-      const res = await fetch('https://api.lemonsqueezy.com/v1/licenses/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      const data = await res.json() as { activated: boolean; error?: string };
+      const res = await fetch(
+        "https://api.lemonsqueezy.com/v1/licenses/activate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+        },
+      );
+      const data = (await res.json()) as ActivateResponse;
       if (data.activated === true) {
-        onSuccess();
+        onSuccess(data.license_key!.key, data.instance!.id);
+      } else if (data.error === LIMIT_REACHED_MSG) {
+        setLimitReached(true);
       } else {
-        setKeyError(data.error ?? 'Invalid license key. Please check and try again.');
+        setKeyError(
+          data.error ?? "Invalid license key. Please check and try again.",
+        );
       }
     } catch {
-      setKeyError('Network error. Please check your connection and try again.');
+      setKeyError("Network error. Please check your connection and try again.");
     } finally {
       setVerifying(false);
     }
@@ -100,7 +118,9 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
       aria-modal="true"
       aria-labelledby="upgrade-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         ref={panelRef}
@@ -112,7 +132,10 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
             <Zap className="w-6 h-6 text-accent" />
           </div>
           <div className="flex flex-col gap-1">
-            <h2 id="upgrade-modal-title" className="text-sm font-semibold text-text-primary">
+            <h2
+              id="upgrade-modal-title"
+              className="text-sm font-semibold text-text-primary"
+            >
               Unlock Lightning-Fast Batch Processing
             </h2>
             <p className="text-xs text-text-muted">
@@ -159,8 +182,12 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
         {/* ── License key activation ─────────────────────────────────── */}
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-0.5">
-            <p className="text-xs font-medium text-text-secondary">Already purchased?</p>
-            <p className="text-xs text-text-muted">Activate your license key below.</p>
+            <p className="text-xs font-medium text-text-secondary">
+              Already purchased?
+            </p>
+            <p className="text-xs text-text-muted">
+              Activate your license key below.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -171,32 +198,69 @@ export function UpgradeModal({ onSuccess, onClose }: UpgradeModalProps) {
               onChange={(e) => {
                 setKeyInput(e.target.value);
                 setKeyError(null);
+                setLimitReached(false);
               }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleVerify(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleVerify();
+              }}
               disabled={verifying}
               aria-label="License key"
               className="w-full px-2.5 py-1.5 rounded-lg text-xs text-text-primary bg-surface-raised border border-border-subtle placeholder:text-text-faint focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/30 disabled:opacity-50 transition-colors duration-150"
             />
-            {keyError && (
-              <p className="text-xs text-red-400">{keyError}</p>
+            {keyError && <p className="text-xs text-red-400">{keyError}</p>}
+            {limitReached && (
+              <div className="flex flex-col gap-1.5 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                <p className="text-xs font-medium text-amber-400">
+                  Device limit reached.
+                </p>
+                <p className="text-xs text-text-muted">
+                  You've activated this key on the maximum number of devices.
+                  Please deactivate a previous device first, or manage your
+                  devices in your{" "}
+                  <a
+                    href="https://app.lemonsqueezy.com/my-orders/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent underline underline-offset-2 hover:text-accent-hover"
+                  >
+                    Customer Portal
+                  </a>
+                  .
+                </p>
+              </div>
             )}
           </div>
 
           <button
             type="button"
             onClick={handleVerify}
-            disabled={verifying || keyInput.trim() === ''}
+            disabled={verifying || keyInput.trim() === ""}
             className="bar-btn bar-btn-outline w-full justify-center"
           >
             {verifying ? (
-              <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              <svg
+                className="animate-spin w-3.5 h-3.5 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
               </svg>
             ) : (
               <KeyRound className="w-3.5 h-3.5" />
             )}
-            {verifying ? 'Verifying...' : 'Verify Key'}
+            {verifying ? "Verifying..." : "Verify Key"}
           </button>
         </div>
       </div>

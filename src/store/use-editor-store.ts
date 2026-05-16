@@ -1,5 +1,11 @@
 import { create } from 'zustand';
 import type { FilterType, FilterLayer, BatchImage } from '../types/image-worker.types';
+import { IS_PUBLIC_BETA } from '../config/beta';
+
+const PRO_FLAG_KEY = '_bl_sys_conf';
+const PRO_FLAG_VAL = 'x9f_88a_v2';
+const LIC_KEY      = '_bl_lic_ref';
+const INST_KEY     = '_bl_inst_ref';
 
 // Default parameter value per filter type
 export function defaultValueFor(type: FilterType): number {
@@ -25,6 +31,7 @@ interface EditorState {
   processingTimeMs: number | null;
   isBatchExporting: boolean;
   batchProgress: { current: number; total: number } | null;
+  isPro: boolean;
 }
 
 interface EditorActions {
@@ -50,6 +57,10 @@ interface EditorActions {
   setBatchExporting: (exporting: boolean) => void;
   setBatchProgress: (progress: { current: number; total: number } | null) => void;
 
+  // License management
+  unlockPro: (licenseKey: string, instanceId: string) => void;
+  deactivatePro: () => Promise<void>;
+
   // Global reset — caller must revoke all processedUrls before calling
   reset: () => void;
 }
@@ -63,6 +74,7 @@ const initialState: EditorState = {
   processingTimeMs: null,
   isBatchExporting: false,
   batchProgress: null,
+  isPro: IS_PUBLIC_BETA || localStorage.getItem(PRO_FLAG_KEY) === PRO_FLAG_VAL,
 };
 
 export const useEditorStore = create<EditorState & EditorActions>((set) => ({
@@ -153,6 +165,41 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
   setBatchExporting: (exporting) => set({ isBatchExporting: exporting }),
   setBatchProgress: (progress) => set({ batchProgress: progress }),
 
+  // ── License management ──────────────────────────────────────────────────────
+
+  unlockPro: (licenseKey, instanceId) => {
+    localStorage.setItem(PRO_FLAG_KEY, PRO_FLAG_VAL);
+    localStorage.setItem(LIC_KEY,      licenseKey);
+    localStorage.setItem(INST_KEY,     instanceId);
+    set({ isPro: true });
+  },
+
+  deactivatePro: async () => {
+    const licenseKey = localStorage.getItem(LIC_KEY);
+    const instanceId = localStorage.getItem(INST_KEY);
+
+    if (licenseKey && instanceId) {
+      try {
+        const body = new URLSearchParams({
+          license_key: licenseKey,
+          instance_id: instanceId,
+        });
+        await fetch('https://api.lemonsqueezy.com/v1/licenses/deactivate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+      } catch {
+        // Network failure is non-fatal — always clear local state below
+      }
+    }
+
+    localStorage.removeItem(PRO_FLAG_KEY);
+    localStorage.removeItem(LIC_KEY);
+    localStorage.removeItem(INST_KEY);
+    set({ isPro: false });
+  },
+
   // ── Global reset ────────────────────────────────────────────────────────────
   // Revokes all source objectUrls. Caller must revoke all processedUrls before calling.
 
@@ -162,6 +209,6 @@ export const useEditorStore = create<EditorState & EditorActions>((set) => ({
         URL.revokeObjectURL(img.objectUrl);
         // processedUrl revocation is caller's responsibility (hook owns those)
       }
-      return initialState;
+      return { ...initialState, isPro: state.isPro };
     }),
 }));
